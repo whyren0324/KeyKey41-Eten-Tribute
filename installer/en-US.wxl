@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WixLocalization Culture="en-US" xmlns="http://wixtoolset.org/schemas/v4/wxl">
+  <String Id="ProductName" Value="KeyKey 41 - ETen Tribute Edition" />
+  <String Id="Manufacturer" Value="KeyKey 41 Community" />
+  <String Id="CoreFeatureTitle" Value="KeyKey 41 Input Method Core" />
+  <String Id="ConfigShortcutName" Value="KeyKey 41 Preferences" />
+  <String Id="ConfigShortcutDesc" Value="Configure the unofficial KeyKey 41 tribute edition" />
+  <String Id="DowngradeError" Value="A newer version of [ProductName] is already installed." />
+</WixLocalization>

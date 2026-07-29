@@ -1,0 +1,189 @@
+# build_msi.ps1
+# Script to build the KeyKey 41 tribute MSI installer
+#
+param(
+    [string]$Configuration = "Release",
+    [string]$OutputName = "KeyKey41-Eten-Tribute-x64-0.9.4-beta.1.msi",
+    [switch]$SkipBuild = $false
+)
+
+$ErrorActionPreference = "Stop"
+
+$CMakeExe = (Get-Command cmake -ErrorAction SilentlyContinue).Source
+if (-not $CMakeExe) {
+    $BundledCMake = "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe"
+    if (Test-Path -LiteralPath $BundledCMake) {
+        $CMakeExe = $BundledCMake
+    } else {
+        throw "CMake was not found in PATH or in the Visual Studio 2022 Community installation."
+    }
+}
+
+$X64BuildRoot = "build_brian"
+# A native Win32 TIP is required for 32-bit applications running under WOW64.
+# It shares the x64 server through the architecture-neutral named pipe.
+$X86BuildRoot = "build_x86"
+
+$X64BinDir = "$X64BuildRoot\bin\$Configuration"
+$X86BinDir = "$X86BuildRoot\bin\$Configuration"
+$OpenCCDir = "$X64BuildRoot\third_party\OpenCC\data"
+$GeneratedDir = "build_msi_generated"
+$LicenseTxtPath = "LICENSE.txt"
+$LicenseRtfPath = Join-Path $GeneratedDir "LICENSE.rtf"
+$RequiredWixExtensionVersion = "7.0.0"
+
+# Detect current platform
+function Get-CurrentPlatform {
+    $processorArchitecture = $env:PROCESSOR_ARCHITECTURE
+    $processorArchW6432 = $env:PROCESSOR_ARCHITEW6432
+    if ($null -eq $processorArchW6432) {
+        switch ($processorArchitecture) {
+            "AMD64" { return "x64" }
+            "ARM64" { return "ARM64" }
+            "x86" { return "x86" }
+            default { return $processorArchitecture }
+        }
+    } else {
+        switch ($processorArchW6432) {
+            "AMD64" { return "x64" }
+            "ARM64" { return "ARM64" }
+            default { return "x64" }
+        }
+    }
+}
+
+$CurrentPlatform = Get-CurrentPlatform
+Write-Host "Detected current platform: $CurrentPlatform" -ForegroundColor Cyan
+
+function Should-SkipOpenCCDict {
+    param([string]$TargetArchitecture, [string]$CurrentPlatform)
+    return ($TargetArchitecture -ne $CurrentPlatform)
+}
+
+function Get-CMakeCacheValue {
+    param([string]$CachePath, [string]$VariableName)
+    if (-not (Test-Path $CachePath)) { return $null }
+    $match = Select-String -Path $CachePath -Pattern "^$([regex]::Escape($VariableName)):.*=(.*)$" -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($null -eq $match) { return $null }
+    return $match.Matches[0].Groups[1].Value
+}
+
+$requiredArtifacts = @(
+    "$X64BinDir\McBopomofoServer.exe",
+    "$X64BinDir\McBopomofoConfig.exe",
+    "$X64BinDir\McBopomofoTIP_v2.dll",
+    "$X86BinDir\McBopomofoServer.exe",
+    "$X86BinDir\McBopomofoConfig.exe",
+    "$X86BinDir\McBopomofoTIP_v2.dll"
+)
+
+function Build-Architecture([string]$Architecture, [string]$BuildRoot, [string]$Configuration) {
+    Write-Host "Building $Architecture architecture in $BuildRoot..." -ForegroundColor Cyan
+    if (-not (Test-Path $BuildRoot)) { New-Item -ItemType Directory -Path $BuildRoot | Out-Null }
+    Push-Location $BuildRoot
+    try {
+        $skipOpenCCDict = Should-SkipOpenCCDict -TargetArchitecture $Architecture -CurrentPlatform $CurrentPlatform
+        $skipOpenCCDictFlag = if ($skipOpenCCDict) { "-DSKIP_OPENCC_DICT=ON" } else { "-DSKIP_OPENCC_DICT=OFF" }
+        # We are already inside BuildRoot after Push-Location.
+        $cachePath = "CMakeCache.txt"
+        $cachedSkipOpenCCDict = Get-CMakeCacheValue -CachePath $cachePath -VariableName "SKIP_OPENCC_DICT"
+        $needsConfigure = $true
+        if ($cachedSkipOpenCCDict -ne $null) {
+            if (($skipOpenCCDict -and $cachedSkipOpenCCDict.Trim() -eq "ON") -or (-not $skipOpenCCDict -and $cachedSkipOpenCCDict.Trim() -eq "OFF")) { $needsConfigure = $false }
+        }
+        if ($needsConfigure) {
+            $cmakeArgs = @($skipOpenCCDictFlag, "-DCMAKE_BUILD_TYPE=$Configuration")
+            if ($Architecture -eq "ARM64") { & $CMakeExe -A ARM64 @cmakeArgs .. }
+            elseif ($Architecture -eq "x86") { & $CMakeExe -A Win32 @cmakeArgs .. }
+            else { & $CMakeExe -A x64 @cmakeArgs .. }
+            if ($LASTEXITCODE -ne 0) { throw "CMake configure failed" }
+        }
+        if ($Architecture -eq "x64") {
+            & $CMakeExe --build . --config $Configuration --target third_party/OpenCC/data/Dictionaries
+        }
+        & $CMakeExe --build . --config $Configuration --target McBopomofoTIP McBopomofoServer McBopomofoConfig
+        if ($LASTEXITCODE -ne 0) { throw "CMake build failed" }
+    } finally { Pop-Location }
+}
+
+function Build-AllArchitectures {
+    if ($SkipBuild) {
+        $missing = $requiredArtifacts | Where-Object { -not (Test-Path $_) }
+        if ($missing.Count -gt 0) {
+            Write-Host "Error: Artifacts missing and -SkipBuild set." -ForegroundColor Red
+            exit 1
+        }
+        return
+    }
+
+    # Windows 11 x64 still hosts many Win32 applications. Build both native
+    # architectures so each process can load a matching in-process TSF DLL.
+    Build-Architecture "x64" $X64BuildRoot $Configuration
+    Build-Architecture "x86" $X86BuildRoot $Configuration
+}
+
+function Convert-LicenseTextToRtf([string]$InputPath, [string]$OutputPath) {
+    if (-not (Test-Path $GeneratedDir)) { New-Item -ItemType Directory -Path $GeneratedDir | Out-Null }
+    $content = (Get-Content -LiteralPath $InputPath -Raw) -replace "`r`n", "`n" -replace "`r", "`n"
+    $content = $content.TrimEnd("`n")
+    $paragraphs = $content -split "`n[ `t]*`n+"
+    $escapedParagraphs = $paragraphs | ForEach-Object {
+        $paragraph = ($_ -split "`n" | ForEach-Object { $_.Trim() }) -join " "
+        $paragraph.Replace('\', '\\').Replace('{', '\{').Replace('}', '\}')
+    }
+    $escaped = $escapedParagraphs -join "\par`n\par`n"
+    $rtf = "{\rtf1\ansi\deff0{\fonttbl{\f0 Arial;}}\viewkind4\uc1\pard\f0\fs20 " + $escaped + "}"
+    Set-Content -LiteralPath $OutputPath -Value $rtf -Encoding ASCII
+}
+
+Build-AllArchitectures
+Convert-LicenseTextToRtf -InputPath $LicenseTxtPath -OutputPath $LicenseRtfPath
+
+function Find-WixExecutable {
+    $candidates = @("C:\Program Files\WiX Toolset v7.0\bin\wix.exe", "C:\Program Files\WiX Toolset v4.0\bin\wix.exe")
+    $cmd = Get-Command wix -ErrorAction SilentlyContinue
+    if ($cmd) { $candidates += $cmd.Source }
+    foreach ($c in $candidates | Select-Object -Unique) { if (Test-Path $c) { return $c } }
+    return $null
+}
+
+function Add-WixExtension([string]$WixExe, [string]$ExtensionId) {
+    $extensionRef = "$ExtensionId/$RequiredWixExtensionVersion"
+    $installedExtensions = & $WixExe extension list -g
+    if ($LASTEXITCODE -eq 0 -and
+        $installedExtensions -contains "$ExtensionId $RequiredWixExtensionVersion") {
+        Write-Host "WiX extension already installed: $extensionRef"
+        return
+    }
+    & $WixExe extension add -g $extensionRef
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to install WiX extension: $extensionRef"
+    }
+}
+
+function Invoke-WixBuild([string]$WixExe, [string]$OutDir, [string]$OutputName, [string]$X64BinDir, [string]$X86BinDir, [string]$OpenCCDir) {
+    $MsiPath = Join-Path $OutDir $OutputName
+
+    Write-Host "Installing required WiX extensions..." -ForegroundColor Cyan
+    Add-WixExtension $WixExe "WixToolset.UI.wixext"
+    Add-WixExtension $WixExe "WixToolset.Util.wixext"
+
+    Write-Host "Building MSI installer (zh-TW)..." -ForegroundColor Cyan
+    # We use zh-TW as the primary culture for the installer UI.
+    # We still provide both .wxl files to the build process.
+    & $WixExe build -ext "WixToolset.UI.wixext/$RequiredWixExtensionVersion" -ext "WixToolset.Util.wixext/$RequiredWixExtensionVersion" `
+        installer\installer.wxs installer\zh-TW.wxl installer\en-US.wxl `
+        -culture zh-TW -o $MsiPath `
+        -b "X64BinDir=$X64BinDir" -b "X86BinDir=$X86BinDir" -b "OpenCCDir=$OpenCCDir"
+    
+    if ($LASTEXITCODE -ne 0) { throw "MSI build failed" }
+}
+
+$WixExe = Find-WixExecutable
+if (-not $WixExe) { Write-Host "Error: WiX CLI not found." -ForegroundColor Red; exit 1 }
+
+$OutDir = "dist"
+if (-not (Test-Path $OutDir)) { New-Item -ItemType Directory -Path $OutDir | Out-Null }
+
+Invoke-WixBuild $WixExe $OutDir $OutputName $X64BinDir $X86BinDir $OpenCCDir
+Write-Host "Successfully created MSI at: dist\$OutputName" -ForegroundColor Green

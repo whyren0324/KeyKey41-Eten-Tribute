@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WixLocalization Culture="zh-TW" xmlns="http://wixtoolset.org/schemas/v4/wxl">
+  <String Id="ProductName" Value="KeyKey 41 — 倚天紀念版" />
+  <String Id="Manufacturer" Value="KeyKey 41 Community" />
+  <String Id="CoreFeatureTitle" Value="KeyKey 41 輸入法核心" />
+  <String Id="ConfigShortcutName" Value="KeyKey 41 偏好設定" />
+  <String Id="ConfigShortcutDesc" Value="設定 KeyKey 41 — 倚天紀念版" />
+  <String Id="DowngradeError" Value="已安裝較新版本的 [ProductName]。" />
+</WixLocalization>

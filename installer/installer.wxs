@@ -1,0 +1,240 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+  <!-- Use a static upgrade code to allow seamless upgrades later -->
+  <Package Name="!(loc.ProductName)"
+           Manufacturer="!(loc.Manufacturer)"
+           Version="0.9.4.0"
+           UpgradeCode="4e4b52c0-cf52-47b1-9b7e-976c6dfcbb17"
+           Scope="perMachine"
+           InstallerVersion="200"
+           Compressed="yes">
+
+    <util:QueryNativeMachine />
+
+    <!-- Use a simple UI -->
+    <ui:WixUI Id="WixUI_InstallDir" />
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+    <WixVariable Id="WixUILicenseRtf" Value="build_msi_generated\LICENSE.rtf" />
+    <WixVariable Id="WixUIDialogBmp" Value="installer\installer_dialog.bmp" />
+    <WixVariable Id="WixUIBannerBmp" Value="installer\installer_banner.bmp" />
+    <UI>
+      <Publish Dialog="LicenseAgreementDlg"
+               Control="Next"
+               Event="NewDialog"
+               Value="VerifyReadyDlg"
+               Condition="WIX_UPGRADE_DETECTED"
+               Order="3" />
+      <Publish Dialog="VerifyReadyDlg"
+               Control="Back"
+               Event="NewDialog"
+               Value="LicenseAgreementDlg"
+               Condition="WIX_UPGRADE_DETECTED"
+               Order="3" />
+    </UI>
+
+    <Property Id="INSTALLFOLDER">
+      <RegistrySearch Id="SearchInstallDir" Root="HKLM" Key="SOFTWARE\KeyKey41" Name="InstallDir" Type="raw" />
+    </Property>
+
+    <!-- Pre-release version normalization: allow replacing earlier internal
+         test builds whose numeric versions were higher than 0.9.4. -->
+    <MajorUpgrade AllowDowngrades="yes" />
+
+    <!-- Ensure cab files are embedded in the MSI -->
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- Detect and close applications to prevent file locks during installation/uninstallation -->
+    <util:CloseApplication Id="CloseServerAppLegacy" Target="McBopomofoServer.exe" CloseMessage="yes" RebootPrompt="yes" />
+    <util:CloseApplication Id="CloseConfigAppLegacy" Target="McBopomofoConfig.exe" CloseMessage="yes" RebootPrompt="yes" />
+    <util:CloseApplication Id="CloseServerAppX86" Target="McBopomofoServer_x86.exe" CloseMessage="yes" RebootPrompt="yes" />
+    <util:CloseApplication Id="CloseServerAppX64" Target="McBopomofoServer_x64.exe" CloseMessage="yes" RebootPrompt="yes" />
+    <util:CloseApplication Id="CloseConfigAppX86" Target="McBopomofoConfig_x86.exe" CloseMessage="yes" RebootPrompt="yes" />
+    <util:CloseApplication Id="CloseConfigAppX64" Target="McBopomofoConfig_x64.exe" CloseMessage="yes" RebootPrompt="yes" />
+
+    <!-- Check and close applications that have loaded McBopomofoTIP DLL -->
+    <CustomAction Id="CheckAndCloseAppsWithTIP" 
+                  Script="vbscript"
+                  ScriptSourceFile="scripts\CheckAndCloseAppsWithTIP.vbs"
+                  Execute="immediate"
+                  Impersonate="yes"
+                  Return="check" />
+
+    <!-- Define the directory structure -->
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="OpenVanillaFolder" Name="KeyKey41">
+        <Directory Id="INSTALLFOLDER" Name="EtenTribute">
+          <Directory Id="DataFolder" Name="data">
+            <Directory Id="OpenCCFolder" Name="opencc" />
+          </Directory>
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ApplicationProgramsFolder" Name="KeyKey 41 倚天紀念版"/>
+    </StandardDirectory>
+
+    <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+      <!-- Persistence for Install Path -->
+      <Component Id="cmp_SaveInstallDir" Guid="1d3c5e7f-8b2a-4a1d-8c7b-3e5f4d2c1b0a">
+        <RegistryValue Root="HKLM" Key="SOFTWARE\KeyKey41" Name="InstallDir" Type="string" Value="[INSTALLFOLDER]" KeyPath="yes" />
+      </Component>
+
+      <!-- Core Executables and DLLs -->
+      <Component Id="cmp_ServerExeX64" Guid="96a40a8a-e9fa-48b4-aeb2-e64fc5a9d8c0">
+        <File Id="file_ServerExeX64" Name="McBopomofoServer_x64.exe" Source="!(bindpath.X64BinDir)\McBopomofoServer.exe" KeyPath="yes" />
+      </Component>
+      <Component Id="cmp_ServerExeX86" Guid="e1de728f-9307-4d98-99b1-1d2b64c5cf0d">
+        <File Id="file_ServerExeX86" Name="McBopomofoServer_x86.exe" Source="!(bindpath.X86BinDir)\McBopomofoServer.exe" KeyPath="yes" />
+      </Component>
+      <Component Id="cmp_ConfigExeX64" Guid="316f73db-24da-44a6-9bd6-239634e9e4f3">
+        <File Id="file_ConfigExeX64" Name="McBopomofoConfig_x64.exe" Source="!(bindpath.X64BinDir)\McBopomofoConfig.exe" KeyPath="yes" />
+      </Component>
+      <Component Id="cmp_ConfigExeX86" Guid="3e958604-4f7e-4ba9-a860-3af4128b5c0c">
+        <File Id="file_ConfigExeX86" Name="McBopomofoConfig_x86.exe" Source="!(bindpath.X86BinDir)\McBopomofoConfig.exe" KeyPath="yes" />
+      </Component>
+      <Component Id="cmp_TipDllX64" Guid="0de249ed-cc13-41a4-927b-2e915f0ebfc6">
+        <File Id="file_TipDllX64" Name="McBopomofoTIP_x64.dll" Source="!(bindpath.X64BinDir)\McBopomofoTIP_v2.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="cmp_TipDllX86" Guid="9f523632-4e8d-49e3-bf94-0556cffcfb0b">
+        <File Id="file_TipDllX86" Name="McBopomofoTIP_x86.dll" Source="!(bindpath.X86BinDir)\McBopomofoTIP_v2.dll" KeyPath="yes" />
+      </Component>
+      
+      <Component Id="cmp_ServerAutorunX86" Guid="0b1113ae-d6c5-4278-a1b4-5b778cd7fae5" Condition="NOT VersionNT64">
+        <RegistryValue Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Run" Name="Win-McBopomofo-Server" Type="string" Value="&quot;[#file_ServerExeX86]&quot;" KeyPath="yes" />
+      </Component>
+      <Component Id="cmp_ServerAutorunX64" Guid="53611b78-347a-4d8c-9188-d1e08c48d1b0" Condition="VersionNT64 AND WIX_NATIVE_MACHINE = 34404">
+        <RegistryValue Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Run" Name="Win-McBopomofo-Server" Type="string" Value="&quot;[#file_ServerExeX64]&quot;" KeyPath="yes" />
+      </Component>
+
+      <!-- Start Menu Shortcut -->
+      <Component Id="ApplicationShortcutX86" Guid="7ab59b8a-b853-4702-abaa-281ceeb7357c" Condition="NOT VersionNT64">
+        <Shortcut Id="ApplicationStartMenuShortcut" 
+                  Name="!(loc.ConfigShortcutName)" 
+                  Description="!(loc.ConfigShortcutDesc)"
+                  Target="[INSTALLFOLDER]McBopomofoConfig_x86.exe"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Directory="ApplicationProgramsFolder" />
+        <RegistryValue Root="HKCU" Key="Software\McBopomofo\Installer" Name="shortcut_x86" Type="integer" Value="1" KeyPath="yes"/>
+      </Component>
+      <Component Id="ApplicationShortcutX64" Guid="4fd147f5-cfd2-4960-b145-77a08ee2a6f0" Condition="VersionNT64 AND WIX_NATIVE_MACHINE = 34404">
+        <Shortcut Id="ApplicationStartMenuShortcutX64" 
+                  Name="!(loc.ConfigShortcutName)" 
+                  Description="!(loc.ConfigShortcutDesc)"
+                  Target="[INSTALLFOLDER]McBopomofoConfig_x64.exe"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Directory="ApplicationProgramsFolder" />
+        <RegistryValue Root="HKCU" Key="Software\McBopomofo\Installer" Name="shortcut_x64" Type="integer" Value="1" KeyPath="yes"/>
+      </Component>
+      <Component Id="ApplicationShortcutCleanup" Guid="1fa519f0-d685-4f78-bf52-0ccdc768db33">
+        <RemoveFolder Id="CleanUpShortCut" Directory="ApplicationProgramsFolder" On="uninstall"/>
+        <RegistryValue Root="HKCU" Key="Software\McBopomofo\Installer" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+      </Component>
+    </ComponentGroup>
+
+    <!-- Data Files -->
+    <ComponentGroup Id="DataComponents" Directory="DataFolder">
+      <Component Id="cmp_DataTxt" Guid="*">
+        <File Id="file_DataTxt" Source="data\data.txt" KeyPath="yes" />
+      </Component>
+      <Component Id="cmp_DataPlainBpmf" Guid="*">
+        <File Id="file_DataPlainBpmf" Source="data\data-plain-bpmf.txt" KeyPath="yes" />
+      </Component>
+      <Component Id="cmp_AssocPhrases" Guid="*">
+        <File Id="file_AssocPhrases" Source="data\associated-phrases-v2.txt" KeyPath="yes" />
+      </Component>
+      <Component Id="cmp_DictService" Guid="*">
+        <File Id="file_DictService" Source="data\dictionary_service.json" KeyPath="yes" />
+      </Component>
+      <Component Id="cmp_Variants" Guid="*">
+        <File Id="file_Variants" Source="data\bpmfvs-variants.txt" KeyPath="yes" />
+      </Component>
+      <Component Id="cmp_Pua" Guid="*">
+        <File Id="file_Pua" Source="data\bpmfvs-pua.txt" KeyPath="yes" />
+      </Component>
+
+      <!-- OpenCC Data -->
+      <Component Id="cmp_OpenCC_Config_tw2s" Guid="*" Directory="OpenCCFolder">
+        <File Id="file_OpenCC_Config_tw2s" Source="third_party\OpenCC\data\config\tw2s.json" KeyPath="yes" />
+      </Component>
+      <Component Id="cmp_OpenCC_Dict_TSCharacters" Guid="*" Directory="OpenCCFolder">
+        <File Id="file_OpenCC_Dict_TSCharacters" Source="!(bindpath.OpenCCDir)\TSCharacters.ocd2" KeyPath="yes" />
+      </Component>
+      <Component Id="cmp_OpenCC_Dict_TSPhrases" Guid="*" Directory="OpenCCFolder">
+        <File Id="file_OpenCC_Dict_TSPhrases" Source="!(bindpath.OpenCCDir)\TSPhrases.ocd2" KeyPath="yes" />
+      </Component>
+      <Component Id="cmp_OpenCC_Dict_TWVariantsRev" Guid="*" Directory="OpenCCFolder">
+        <File Id="file_OpenCC_Dict_TWVariantsRev" Source="!(bindpath.OpenCCDir)\TWVariantsRev.ocd2" KeyPath="yes" />
+      </Component>
+      <Component Id="cmp_OpenCC_Dict_TWVariantsRevPhrases" Guid="*" Directory="OpenCCFolder">
+        <File Id="file_OpenCC_Dict_TWVariantsRevPhrases" Source="!(bindpath.OpenCCDir)\TWVariantsRevPhrases.ocd2" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <!-- Custom Actions to register/unregister the TSF DLL and manage Server process -->
+    <CustomAction Id="RegisterTIP_X64" 
+                  Directory="INSTALLFOLDER" 
+                  ExeCommand="&quot;[System64Folder]regsvr32.exe&quot; /s &quot;[#file_TipDllX64]&quot;" 
+                  Execute="deferred" 
+                  Impersonate="no" 
+                  Return="check" />
+
+    <CustomAction Id="UnregisterTIP_X64" 
+                  Directory="INSTALLFOLDER" 
+                  ExeCommand="&quot;[System64Folder]regsvr32.exe&quot; /u /s &quot;[#file_TipDllX64]&quot;" 
+                  Execute="deferred" 
+                  Impersonate="no" 
+                  Return="check" />
+
+    <CustomAction Id="RegisterTIP_X86" 
+                  Directory="INSTALLFOLDER" 
+                  ExeCommand="&quot;[SystemFolder]regsvr32.exe&quot; /s &quot;[#file_TipDllX86]&quot;" 
+                  Execute="deferred" 
+                  Impersonate="no" 
+                  Return="check" />
+
+    <CustomAction Id="UnregisterTIP_X86" 
+                  Directory="INSTALLFOLDER" 
+                  ExeCommand="&quot;[SystemFolder]regsvr32.exe&quot; /u /s &quot;[#file_TipDllX86]&quot;" 
+                  Execute="deferred" 
+                  Impersonate="no" 
+                  Return="check" />
+
+
+    <!-- Start the server executables asynchronously -->
+    <CustomAction Id="StartServer_X86" 
+                  Directory="INSTALLFOLDER" 
+                  ExeCommand="&quot;[#file_ServerExeX86]&quot;" 
+                  Execute="immediate" 
+                  Impersonate="yes" 
+                  Return="asyncNoWait" />
+    <CustomAction Id="StartServer_X64" 
+                  Directory="INSTALLFOLDER" 
+                  ExeCommand="&quot;[#file_ServerExeX64]&quot;" 
+                  Execute="immediate" 
+                  Impersonate="yes" 
+                  Return="asyncNoWait" />
+
+    <InstallExecuteSequence>
+      <Custom Action="CheckAndCloseAppsWithTIP" Before="InstallInitialize" Condition="NOT REMOVE=&quot;ALL&quot;" />
+
+      <!-- On AMD64 Windows register both registry views: the native TIP is
+           loaded by 64-bit apps and the Win32 TIP by WOW64 applications. -->
+      <Custom Action="UnregisterTIP_X86" Before="RemoveFiles" Condition="REMOVE=&quot;ALL&quot; AND (NOT VersionNT64 OR WIX_NATIVE_MACHINE = 34404)" />
+      <Custom Action="UnregisterTIP_X64" Before="RemoveFiles" Condition="REMOVE=&quot;ALL&quot; AND VersionNT64 AND WIX_NATIVE_MACHINE = 34404" />
+      <Custom Action="RegisterTIP_X86" After="InstallFiles" Condition="NOT REMOVE=&quot;ALL&quot; AND (NOT VersionNT64 OR WIX_NATIVE_MACHINE = 34404)" />
+      <!-- Schedule x64 after x86 so the shared TSF profile metadata and icon
+           path finish on the native x64 DLL. -->
+      <Custom Action="RegisterTIP_X64" After="RegisterTIP_X86" Condition="NOT REMOVE=&quot;ALL&quot; AND VersionNT64 AND WIX_NATIVE_MACHINE = 34404" />
+      <Custom Action="StartServer_X86" After="InstallFinalize" Condition="NOT REMOVE=&quot;ALL&quot; AND NOT VersionNT64" />
+      <Custom Action="StartServer_X64" After="InstallFinalize" Condition="NOT REMOVE=&quot;ALL&quot; AND VersionNT64 AND WIX_NATIVE_MACHINE = 34404" />
+    </InstallExecuteSequence>
+
+    <Feature Id="MainFeature" Title="!(loc.CoreFeatureTitle)" Level="1">
+      <ComponentGroupRef Id="ProductComponents" />
+      <ComponentGroupRef Id="DataComponents" />
+    </Feature>
+  </Package>
+</Wix>

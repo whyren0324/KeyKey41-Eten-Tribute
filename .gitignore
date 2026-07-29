@@ -1,0 +1,16 @@
+# Build directories
+build*/
+bin/
+lib/
+obj/
+out/
+dist/
+
+# Other temporary files
+*.tmp
+*.bak
+tmp_pime/
+
+# IDE
+.vs/
+*.aps

@@ -1,0 +1,108 @@
+#include "resource.h"
+#include <winres.h>
+#include "WinMcBopomofoVersion.rcinc"
+
+IDI_ICON_APP ICON "..\\Client\\res\\app.ico"
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION WINMCBOPOMOFO_VERSION_NUM
+ PRODUCTVERSION WINMCBOPOMOFO_VERSION_NUM
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x40004L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904E4"
+        BEGIN
+            VALUE "Comments", "MIT License"
+            VALUE "CompanyName", "OpenVanilla.org"
+            VALUE "FileDescription", "KeyKey 41 ETen Tribute Server"
+            VALUE "FileVersion", WINMCBOPOMOFO_VERSION_STR
+            VALUE "InternalName", "McBopomofoServer"
+            VALUE "LegalCopyright", "McBopomofo Authors. All rights reserved."
+            VALUE "OriginalFilename", "McBopomofoServer.exe"
+            VALUE "ProductName", "KeyKey 41 - ETen Tribute"
+            VALUE "ProductVersion", WINMCBOPOMOFO_VERSION_STR
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0409, 1200
+    END
+END
+
+#pragma code_page(65001)
+
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+STRINGTABLE
+BEGIN
+    IDS_SETTINGS                   "Settings"
+    IDS_EDIT_USER_PHRASES          "Edit User Phrases"
+    IDS_EDIT_EXCLUDED_PHRASES      "Edit Excluded Phrases"
+    IDS_OPEN_USER_DATA_FOLDER      "Open User Data Folder"
+    IDS_OPEN_LOG_FOLDER            "Open Log Folder"
+    IDS_ENABLE_LOGGING             "Enable Logging"
+    IDS_TRACE_LOG                  "Trace Log"
+    IDS_RESTART_SERVER             "Restart Server"
+    IDS_STOP_SERVER                "Stop Server"
+    IDS_TRAY_TIP                   "KeyKey 41 - ETen Tribute"
+    IDS_DAEMON_STARTING            "KeyKey 41 server starting..."
+    IDS_SERVER_RUNNING             "Server is running in background. Check System Tray to exit."
+    IDS_CURSOR_BETWEEN_SYLLABLES   "Cursor between %s and %s"
+    IDS_SYLLABLES_REQUIRED         "%d syllables required"
+    IDS_SYLLABLES_MAXIMUM          "Maximum %d syllables"
+    IDS_PHRASE_ALREADY_EXISTS      "Phrase already exists"
+    IDS_PRESS_ENTER_TO_ADD_THE_PHRASE "Press Enter to add the phrase"
+    IDS_MARKING_NOT_AVAILABLE_IN_FONT_ANNOTATION_MODE "Marking not available in font annotation mode"
+    IDS_FONT_ANNOTATION_MODE_TOOLTIP "Font annotation mode"
+    IDS_FONT_ANNOTATION_MODE_TOOLTIP_ADVANCED "Font annotation mode (Advanced)"
+    IDS_BOOST                      "Boost"
+    IDS_EXCLUDE                    "Exclude"
+    IDS_CANCEL                     "Cancel"
+    IDS_BOOST_PROMPT               "Do you want to boost the score of the phrase?"
+    IDS_EXCLUDE_PROMPT             "Do you want to exclude the phrase?"
+    IDS_USER_PHRASE_FILE_HEADER    "# Custom Phrases or Characters.\n# See https://github.com/openvanilla/McBopomofo/wiki/使用手冊#手動加詞 for usage.\n# Add your phrases and their respective Bopomofo reading below. Use hyphen (""-"")\n# to connect the Bopomofo syllables.\n# Any line that starts with ""#"" is treated as comment.\n"
+    IDS_EXCLUDED_PHRASE_FILE_HEADER "# Custom Excluded Phrases or Characters.\n# See https://github.com/openvanilla/McBopomofo/wiki/使用手冊#手動刪詞 for usage.\n# For example, the line below will prevent the phrase ""家祠"" from showing up anywhere:\n# Note that you need to use a hyphen (""-"") between Bopomofo syllables.\n"
+    IDS_CHARACTER_INFORMATION      "Character Information"
+END
+
+LANGUAGE LANG_CHINESE, SUBLANG_CHINESE_TRADITIONAL
+STRINGTABLE
+BEGIN
+    IDS_SETTINGS                   "設定"
+    IDS_EDIT_USER_PHRASES          "編輯使用者詞庫"
+    IDS_EDIT_EXCLUDED_PHRASES      "編輯排除詞庫"
+    IDS_OPEN_USER_DATA_FOLDER      "開啟使用者資料夾"
+    IDS_OPEN_LOG_FOLDER            "開啟 Log 資料夾"
+    IDS_ENABLE_LOGGING             "啟用 Logging"
+    IDS_TRACE_LOG                  "Trace Log"
+    IDS_RESTART_SERVER             "重新啟動 Server"
+    IDS_STOP_SERVER                "停止 Server"
+    IDS_TRAY_TIP                   "KeyKey 41 — 倚天紀念版"
+    IDS_DAEMON_STARTING            "KeyKey 41 常駐程式啟動中..."
+    IDS_SERVER_RUNNING             "Server 正在背景執行，請檢查系統匣圖示。"
+    IDS_CURSOR_BETWEEN_SYLLABLES   "游標在 %s 與 %s 之間"
+    IDS_SYLLABLES_REQUIRED         "最少需要 %d 個字"
+    IDS_SYLLABLES_MAXIMUM          "最多只能 %d 個字"
+    IDS_PHRASE_ALREADY_EXISTS      "詞彙已存在"
+    IDS_PRESS_ENTER_TO_ADD_THE_PHRASE "按 Enter 加入詞彙"
+    IDS_MARKING_NOT_AVAILABLE_IN_FONT_ANNOTATION_MODE "注音標示模式下無法加詞"
+    IDS_FONT_ANNOTATION_MODE_TOOLTIP "注音標示模式"
+    IDS_FONT_ANNOTATION_MODE_TOOLTIP_ADVANCED "注音標示模式 (進階)"
+    IDS_BOOST                      "提昇權重"
+    IDS_EXCLUDE                    "加入排除字隨"
+    IDS_CANCEL                     "取消"
+    IDS_BOOST_PROMPT               "您想要提昇這個詞的權重嗎？"
+    IDS_EXCLUDE_PROMPT             "您想要排除這個詞嗎？"
+    IDS_USER_PHRASE_FILE_HEADER    "# 手動加詞資料檔\n# 使用方式請參考 https://github.com/openvanilla/McBopomofo/wiki/使用手冊#手動加詞\n# 請在下方加入用戶自訂字詞。每個詞後面要有字詞的讀音。注音音節之間要用減\n# 號 (""-"") 分隔。例如，以下範例加入「小麥注音」一詞：\n# 如果任何一行以 ""#"" 開頭，該行將被當作註解忽略。\n"
+    IDS_EXCLUDED_PHRASE_FILE_HEADER "# 手動刪詞資料檔\n# 使用方式請參考 https://github.com/openvanilla/McBopomofo/wiki/使用手冊#手動刪詞\n# 如果將下面這行範例加入資料檔中，輸入 ""ㄐㄧㄚ ㄘˊ"" 時不會再看到「家祠」一詞：\n# 請注意，注音音節之間要用減號 (""-"") 分隔。\n"
+    IDS_CHARACTER_INFORMATION      "字元資訊"
+END
+
