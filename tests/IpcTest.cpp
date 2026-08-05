@@ -21,6 +21,9 @@ TEST(IpcTest, StateUpdateRoundTripsMultilineStrings) {
   payload.candidateWindowColors.border = 0x778899;
   payload.candidateWindowColors.highlightBackground = 0xAABBCC;
   payload.candidateWindowColors.highlightText = 0xDDEEFF;
+  payload.compositionDisplayMode =
+      IPC::CompositionDisplayMode::kKeyKeyFloating;
+  payload.compositionTextColor = 0xB45DB7;
   payload.candidates = {"一二三", "一〢三〤\n千單位", "plain"};
 
   std::string serialized = IPC::SerializeStateUpdate(payload);
@@ -47,6 +50,8 @@ TEST(IpcTest, StateUpdateRoundTripsMultilineStrings) {
             payload.candidateWindowColors.highlightBackground);
   EXPECT_EQ(decoded.candidateWindowColors.highlightText,
             payload.candidateWindowColors.highlightText);
+  EXPECT_EQ(decoded.compositionDisplayMode, payload.compositionDisplayMode);
+  EXPECT_EQ(decoded.compositionTextColor, payload.compositionTextColor);
   EXPECT_EQ(decoded.candidates, payload.candidates);
 }
 

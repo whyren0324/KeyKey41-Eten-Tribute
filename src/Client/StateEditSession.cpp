@@ -94,6 +94,9 @@ void SetDisplayAttribute(TfEditCookie ec, ITfContext* pContext,
 STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
   std::wstring commitStr = McBopomofo::Utf8ToUtf16(state_.commitString);
   std::wstring compStr = McBopomofo::Utf8ToUtf16(state_.composingBuffer);
+  const bool floatingComposition =
+      state_.compositionDisplayMode ==
+      McBopomofo::IPC::CompositionDisplayMode::kKeyKeyFloating;
   const bool directCommitWithoutComposition =
       !commitStr.empty() && compStr.empty() &&
       pTIP_->GetComposition() == nullptr;
@@ -232,7 +235,10 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
     }
 
     if (pRange && pTIP_->GetComposition()) {
-      pRange->SetText(ec, 0, compStr.c_str(), (LONG)compStr.length());
+      const wchar_t* inlineText = floatingComposition ? L"" : compStr.c_str();
+      const LONG inlineLength =
+          floatingComposition ? 0 : static_cast<LONG>(compStr.length());
+      pRange->SetText(ec, 0, inlineText, inlineLength);
 
       // Apply Display Attributes
       ITfCategoryMgr* pCategoryMgr = nullptr;
@@ -241,13 +247,19 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
                                      (void**)&pCategoryMgr))) {
         TfGuidAtom gaInput = TF_INVALID_GUIDATOM;
         TfGuidAtom gaMarked = TF_INVALID_GUIDATOM;
-        pCategoryMgr->RegisterGUID(c_guidDisplayAttributeInput, &gaInput);
+          const GUID& inputGuid =
+              state_.compositionDisplayMode ==
+                      McBopomofo::IPC::CompositionDisplayMode::kMicrosoftDotted
+                  ? c_guidDisplayAttributeDotted
+                  : c_guidDisplayAttributeInput;
+        pCategoryMgr->RegisterGUID(inputGuid, &gaInput);
         pCategoryMgr->RegisterGUID(c_guidDisplayAttributeMarked, &gaMarked);
 
         // Apply input attribute to the entire composing string first
         SetDisplayAttribute(ec, pContext_, pRange, gaInput);
 
-        if (state_.markStart >= 0 && state_.markEnd >= 0) {
+        if (!floatingComposition && state_.markStart >= 0 &&
+            state_.markEnd >= 0) {
           // Apply marking attribute to the marked portion
           size_t startOffset = McBopomofo::Utf8OffsetToUtf16Offset(
               state_.composingBuffer, state_.markStart);
@@ -275,8 +287,11 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
       ITfRange* pCursorRange = nullptr;
       if (SUCCEEDED(pRange->Clone(&pCursorRange))) {
         LONG cch = 0;
-        size_t utf16CursorIndex = McBopomofo::Utf8OffsetToUtf16Offset(
-            state_.composingBuffer, state_.cursorIndex);
+        size_t utf16CursorIndex =
+            floatingComposition
+                ? 0
+                : McBopomofo::Utf8OffsetToUtf16Offset(
+                      state_.composingBuffer, state_.cursorIndex);
         pCursorRange->Collapse(ec, TF_ANCHOR_START);
         pCursorRange->ShiftEnd(ec, (LONG)utf16CursorIndex, &cch, nullptr);
         pCursorRange->Collapse(ec, TF_ANCHOR_END);

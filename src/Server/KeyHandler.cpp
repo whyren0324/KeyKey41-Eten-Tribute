@@ -198,6 +198,11 @@ bool KeyHandler::handle(Key key, McBopomofo::InputState* state,
         walk();
       }
     }
+    std::string automaticallyCommitted = autoCommitHeadIfNeeded();
+    if (!automaticallyCommitted.empty()) {
+      stateCallback(
+          std::make_unique<InputStates::Committing>(automaticallyCommitted));
+    }
     if (inputMode_ == McBopomofo::InputMode::McBopomofo &&
         associatedPhrasesEnabled_) {
       auto inputting = buildInputtingState();
@@ -1177,6 +1182,12 @@ bool KeyHandler::handlePunctuation(const std::string& punctuationUnigramKey,
   grid_.insertReading(punctuationUnigramKey);
   walk();
 
+  std::string automaticallyCommitted = autoCommitHeadIfNeeded();
+  if (!automaticallyCommitted.empty()) {
+    stateCallback(
+        std::make_unique<InputStates::Committing>(automaticallyCommitted));
+  }
+
   if (inputMode_ == McBopomofo::InputMode::PlainBopomofo) {
     auto inputting = buildInputtingState();
     auto choosingCandidate =
@@ -1591,15 +1602,28 @@ std::unique_ptr<InputStates::Inputting> KeyHandler::buildInputtingState() {
 std::unique_ptr<InputStates::ChoosingCandidate>
 KeyHandler::buildChoosingCandidateState(InputStates::NotEmpty* nonEmptyState,
                                         size_t originalCursor) {
-  auto candidates = grid_.candidatesAt(actualCandidateCursorIndex());
+  const size_t candidateCursor = actualCandidateCursorIndex();
+  auto candidates = grid_.candidatesAt(candidateCursor);
   std::vector<InputStates::ChoosingCandidate::Candidate> stateCandidates;
   for (const auto& c : candidates) {
     stateCandidates.emplace_back(c.reading, c.value, c.rawValue);
   }
 
+  size_t targetStart = 0;
+  size_t targetEnd = 0;
+  size_t cursorPastNode = 0;
+  auto node = latestWalk_.findNodeAt(candidateCursor, &cursorPastNode);
+  if (node != latestWalk_.nodes.cend() &&
+      cursorPastNode >= (*node)->spanningLength()) {
+    const size_t cursorBeforeNode =
+        cursorPastNode - (*node)->spanningLength();
+    targetStart = getComposedString(cursorBeforeNode).head.length();
+    targetEnd = getComposedString(cursorPastNode).head.length();
+  }
+
   return std::make_unique<InputStates::ChoosingCandidate>(
       nonEmptyState->composingBuffer, nonEmptyState->cursorIndex,
-      originalCursor, std::move(stateCandidates));
+      originalCursor, std::move(stateCandidates), targetStart, targetEnd);
 }
 
 std::unique_ptr<InputStates::Marking> KeyHandler::buildMarkingState(
@@ -1936,5 +1960,35 @@ KeyHandler::buildSelectingDictionaryState(
 }
 
 void KeyHandler::walk() { latestWalk_ = grid_.walk(); }
+
+std::string KeyHandler::autoCommitHeadIfNeeded() {
+  if (maximumComposingBufferSize_ == 0 || grid_.cursor() != grid_.length() ||
+      latestWalk_.nodes.empty()) {
+    return {};
+  }
+
+  size_t totalCodePoints = 0;
+  for (const auto& node : latestWalk_.nodes) {
+    totalCodePoints += CodePointCount(node->value());
+  }
+  if (totalCodePoints <= maximumComposingBufferSize_) return {};
+
+  std::string committed;
+  size_t committedCodePoints = 0;
+  size_t committedReadings = 0;
+  for (const auto& node : latestWalk_.nodes) {
+    committed += node->value();
+    committedCodePoints += CodePointCount(node->value());
+    committedReadings += node->spanningLength();
+    if (totalCodePoints - committedCodePoints <=
+        maximumComposingBufferSize_) {
+      break;
+    }
+  }
+
+  if (!grid_.removeHeadReadings(committedReadings)) return {};
+  walk();
+  return committed;
+}
 
 }  // namespace McBopomofo

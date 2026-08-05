@@ -354,6 +354,27 @@ _ctrl_punctuation_] 』 0.0
   }
 }
 
+TEST_F(BugReproTest, KeyKeyFloatingModeKeepsOnlyTenEditableCharacters) {
+  constexpr char kRepeatedPunctuationLm[] = R"(
+# format org.openvanilla.mcbopomofo.sorted
+_ctrl_punctuation_, A 0.0
+)";
+
+  lm->loadLanguageModel(std::make_unique<ParselessPhraseDB>(
+      kRepeatedPunctuationLm, sizeof(kRepeatedPunctuationLm)));
+  controller->setCompositionDisplayMode(
+      IPC::CompositionDisplayMode::kKeyKeyFloating);
+
+  for (int i = 0; i < 11; ++i) {
+    EXPECT_TRUE(controller->handleKey(Key::asciiKey(',', false, true)));
+  }
+
+  EXPECT_EQ(ui->committedString, "A");
+  EXPECT_EQ(ui->lastState.composingBuffer, "AAAAAAAAAA");
+  EXPECT_EQ(ui->lastState.compositionDisplayMode,
+            IPC::CompositionDisplayMode::kKeyKeyFloating);
+}
+
 int main(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

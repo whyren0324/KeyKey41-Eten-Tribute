@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(WinMcBopomofo VERSION 0.9.4 LANGUAGES CXX C)
+project(WinMcBopomofo VERSION 0.9.8 LANGUAGES CXX C)
 
 set(WINMCBOPOMOFO_GENERATED_DIR "${CMAKE_BINARY_DIR}/generated")
 set(WINMCBOPOMOFO_VERSION_RC "${WINMCBOPOMOFO_GENERATED_DIR}/WinMcBopomofoVersion.rcinc")
@@ -98,6 +98,26 @@ target_include_directories(ConfigControlStateTest PRIVATE
     ${CMAKE_SOURCE_DIR}/third_party/OpenCC/deps/googletest-1.15.0/googletest/include)
 target_link_libraries(ConfigControlStateTest PRIVATE gtest_main user32)
 add_test(NAME ConfigControlStateTest COMMAND ConfigControlStateTest)
+
+add_executable(DisplayAttributeInfoTest
+    tests/DisplayAttributeInfoTest.cpp
+    src/Client/DisplayAttributeInfo.cpp)
+target_include_directories(DisplayAttributeInfoTest PRIVATE
+    ${CMAKE_SOURCE_DIR}/src/Client)
+target_link_libraries(DisplayAttributeInfoTest PRIVATE gtest_main oleaut32)
+add_test(NAME DisplayAttributeInfoTest COMMAND DisplayAttributeInfoTest)
+
+add_executable(CompositionDisplayPreview WIN32
+    tests/CompositionDisplayPreview.cpp
+    src/Server/TooltipWindow.cpp
+    src/Client/Globals.cpp
+    src/Common/UTFHelper.cpp)
+target_include_directories(CompositionDisplayPreview PRIVATE
+    ${CMAKE_SOURCE_DIR}/src/Server
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_SOURCE_DIR}/src/Common)
+target_link_libraries(CompositionDisplayPreview PRIVATE
+    d2d1 dwrite dwmapi uxtheme)
 
 add_executable(PipeTest tests/PipeTest.cpp)
 target_include_directories(PipeTest PRIVATE ${CMAKE_SOURCE_DIR}/src/Common ${CMAKE_SOURCE_DIR}/third_party/OpenCC/deps/googletest-1.15.0/googletest/include)

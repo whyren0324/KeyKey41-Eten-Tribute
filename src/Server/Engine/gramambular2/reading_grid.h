@@ -75,6 +75,10 @@ class ReadingGrid {
   // Delete the reading after the cursor, like Del. Cursor is unmoved.
   bool deleteReadingAfterCursor();
 
+  // Removes completed readings from the beginning while preserving the
+  // logical cursor position in the remaining grid.
+  bool removeHeadReadings(size_t count);
+
   static constexpr size_t kMaximumSpanLength = 8;
   static constexpr char kDefaultSeparator[] = "-";
 

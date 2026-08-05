@@ -138,6 +138,15 @@ class Settings {
   int candidateTextColor() const { return candidateTextColor_; }
   void setCandidateTextColor(int v) { candidateTextColor_ = v; }
 
+  IPC::CompositionDisplayMode compositionDisplayMode() const {
+    return compositionDisplayMode_;
+  }
+  void setCompositionDisplayMode(IPC::CompositionDisplayMode v) {
+    compositionDisplayMode_ = v;
+  }
+  int compositionTextColor() const { return compositionTextColor_; }
+  void setCompositionTextColor(int v) { compositionTextColor_ = v; }
+
   bool conversionHotkeyEnabled() const { return conversionHotkeyEnabled_; }
   void setConversionHotkeyEnabled(bool v) { conversionHotkeyEnabled_ = v; }
   int conversionHotkeyModifiers() const { return conversionHotkeyModifiers_; }
@@ -189,6 +198,9 @@ class Settings {
   int candidateHighlightColor_ = -1;
   int candidateBackgroundColor_ = -1;
   int candidateTextColor_ = -1;
+  IPC::CompositionDisplayMode compositionDisplayMode_ =
+      IPC::CompositionDisplayMode::kColor;
+  int compositionTextColor_ = 0xB45DB7;
   bool conversionHotkeyEnabled_ = true;
   int conversionHotkeyModifiers_ = 1;  // Ctrl=1, Shift=2, Alt=4
   int conversionHotkeyKey_ = VK_F3;

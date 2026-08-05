@@ -156,6 +156,9 @@ class KeyHandler {
       std::function<void(const std::string&)> onAddNewPhrase);
   void setRepeatedPunctuationToSelectCandidateEnabled(bool enabled);
   void setChooseCandidateUsingSpace(bool enabled);
+  void setMaximumComposingBufferSize(size_t size) {
+    maximumComposingBufferSize_ = size;
+  }
   void setBopomofoFontAnnotationSupportEnabled(bool enabled);
   bool bopomofoFontAnnotationSupportEnabled() const {
     return bopomofoFontAnnotationSupportEnabled_;
@@ -237,6 +240,7 @@ class KeyHandler {
                                    const std::string& associatedPhraseValue);
 
   void walk();
+  std::string autoCommitHeadIfNeeded();
 
   std::shared_ptr<Formosa::Gramambular2::LanguageModel> lm_;
   std::shared_ptr<VariantAnnotator> variantAnnotator_;
@@ -253,6 +257,7 @@ class KeyHandler {
   bool selectPhraseAfterCursorAsCandidate_ = false;
   bool moveCursorAfterSelection_ = false;
   bool putLowercaseLettersToComposingBuffer_ = false;
+  size_t maximumComposingBufferSize_ = 0;
   bool escKeyClearsEntireComposingBuffer_ = false;
   bool shiftEnterEnabled_ = true;
   bool associatedPhrasesEnabled_ = false;

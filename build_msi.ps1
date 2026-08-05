@@ -3,7 +3,7 @@
 #
 param(
     [string]$Configuration = "Release",
-    [string]$OutputName = "KeyKey41-Eten-Tribute-x64-0.9.4-beta.1.msi",
+    [string]$OutputName = "KeyKey41-Eten-Tribute-x64-0.9.8-beta.1.msi",
     [switch]$SkipBuild = $false
 )
 

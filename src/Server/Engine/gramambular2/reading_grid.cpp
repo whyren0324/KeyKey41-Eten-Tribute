@@ -94,6 +94,20 @@ bool ReadingGrid::deleteReadingAfterCursor() {
   return true;
 }
 
+bool ReadingGrid::removeHeadReadings(size_t count) {
+  if (count == 0) return true;
+  if (count > readings_.size()) return false;
+
+  const size_t oldCursor = cursor_;
+  setCursor(0);
+  for (size_t i = 0; i < count; ++i) {
+    if (!deleteReadingAfterCursor()) return false;
+  }
+  setCursor(oldCursor > count ? oldCursor - count : 0);
+  update();
+  return true;
+}
+
 std::optional<ReadingGrid::NodePtr> ReadingGrid::findInSpan(
     size_t cursor, const std::function<bool(const NodePtr&)>& predicate) const {
   assert(cursor <= readings_.size());

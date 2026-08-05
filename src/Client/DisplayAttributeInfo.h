@@ -22,12 +22,27 @@
 // OTHER DEALINGS IN THE SOFTWARE.
 
 #pragma once
+#include <cstdint>
+
 #include <msctf.h>
 #include <windows.h>
 
 // GUID for normal inputting state (Underline)
 // {4B688CD4-CFB6-4767-AD80-4D562086FC3B}
 extern const GUID c_guidDisplayAttributeInput;
+
+// GUID for Microsoft Bopomofo-like dotted composition underline.
+extern const GUID c_guidDisplayAttributeDotted;
+
+// Shared definitions used by both display-attribute enumeration and direct
+// ITfDisplayAttributeProvider lookup. Keeping these in one place prevents
+// different TSF hosts from receiving different underline styles.
+TF_DISPLAYATTRIBUTE SolidInputDisplayAttribute();
+TF_DISPLAYATTRIBUTE DottedInputDisplayAttribute();
+
+// Returns a stable, color-specific GUID. Some TSF hosts cache display
+// attributes by GUID, so each selectable color must use a distinct GUID.
+const GUID& CompositionDisplayAttributeGuidForColor(uint32_t rgb);
 
 // GUID for marking/highlight state (Highlight)
 // {D82C4A26-E0CC-43BB-8CF2-BB0BBFF4FE70}

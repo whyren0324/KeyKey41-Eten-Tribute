@@ -77,6 +77,14 @@ class InputController {
   void setSelectionAction(const std::string& action);
   void setChineseConversionEnabled(bool enabled);
   void setCandidateFontSize(int size) { candidateFontSize_ = size; }
+  void setCompositionDisplayMode(IPC::CompositionDisplayMode mode) {
+    compositionDisplayMode_ = mode;
+    keyHandler_->setMaximumComposingBufferSize(
+        mode == IPC::CompositionDisplayMode::kKeyKeyFloating ? 10 : 0);
+  }
+  void setCompositionTextColor(uint32_t color) {
+    compositionTextColor_ = color;
+  }
   void setCandidateWindowColors(
       const IPC::CandidateWindowColors& candidateWindowColors);
   void setBeepOnError(bool enabled) { beepOnError_ = enabled; }
@@ -119,6 +127,9 @@ class InputController {
   bool candidateWindowVertical_ = false;
   std::string selectionAction_ = "None";
   int candidateFontSize_ = 16;
+  IPC::CompositionDisplayMode compositionDisplayMode_ =
+      IPC::CompositionDisplayMode::kColor;
+  uint32_t compositionTextColor_ = 0xB45DB7;
   IPC::CandidateWindowColors candidateWindowColors_;
   bool beepOnError_ = true;
 

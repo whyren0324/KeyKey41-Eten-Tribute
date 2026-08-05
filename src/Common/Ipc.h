@@ -92,6 +92,12 @@ struct CandidateWindowColors {
   uint32_t highlightText = 0xFFFFFF;
 };
 
+enum class CompositionDisplayMode : int {
+  kColor = 0,
+  kMicrosoftDotted = 1,
+  kKeyKeyFloating = 2,
+};
+
 struct StateUpdatePayload {
   bool consumed = false;
   std::string commitString;
@@ -109,6 +115,9 @@ struct StateUpdatePayload {
   std::string candidateKeys = "123456789";
   int candidateKeysCount = 9;
   CandidateWindowColors candidateWindowColors;
+  CompositionDisplayMode compositionDisplayMode =
+      CompositionDisplayMode::kColor;
+  uint32_t compositionTextColor = 0xB45DB7;
   std::vector<std::string> candidates;
 };
 

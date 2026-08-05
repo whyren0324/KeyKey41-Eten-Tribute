@@ -100,6 +100,25 @@ int DrawOrMeasureTooltipRun(HDC hdc, std::wstring_view text, int x, int y,
   return cursorX - x;
 }
 
+size_t NextUtf16CodePointOffset(std::wstring_view text, size_t offset) {
+  if (offset >= text.size()) return text.size();
+  if (offset + 1 < text.size() && IS_HIGH_SURROGATE(text[offset]) &&
+      IS_LOW_SURROGATE(text[offset + 1])) {
+    return offset + 2;
+  }
+  return offset + 1;
+}
+
+size_t PreviousUtf16CodePointOffset(std::wstring_view text, size_t offset) {
+  if (offset == 0) return 0;
+  size_t previous = std::min(offset, text.size()) - 1;
+  if (previous > 0 && IS_LOW_SURROGATE(text[previous]) &&
+      IS_HIGH_SURROGATE(text[previous - 1])) {
+    --previous;
+  }
+  return previous;
+}
+
 }  // namespace
 
 TooltipWindow::TooltipWindow()
@@ -108,6 +127,10 @@ TooltipWindow::TooltipWindow()
       hInstance_(nullptr),
       renderMode_(RenderMode::kD2D),
       dpiScale_(1.0f),
+      cursorUtf16Offset_(0),
+      underlineUtf16Start_(0),
+      underlineUtf16End_(0),
+      keyKeyPreeditStyle_(false),
       pD2DFactory_(nullptr),
       pRenderTarget_(nullptr),
       pDWriteFactory_(nullptr),
@@ -139,14 +162,17 @@ TooltipWindow::~TooltipWindow() {
 void TooltipWindow::createDeviceIndependentResources_() {
   if (!pD2DFactory_) {
     D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &pD2DFactory_);
+  }
+  if (!pDWriteFactory_) {
     DWriteCreateFactory(DWRITE_FACTORY_TYPE_ISOLATED, __uuidof(IDWriteFactory),
                         reinterpret_cast<IUnknown**>(&pDWriteFactory_));
-
+  }
+  if (pDWriteFactory_ && !pTextFormat_) {
     pDWriteFactory_->CreateTextFormat(
         L"Microsoft JhengHei UI",  // Good UI font for Traditional Chinese
         NULL, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL,
         DWRITE_FONT_STRETCH_NORMAL,
-        15.0f,  // Slightly smaller than candidate window
+        keyKeyPreeditStyle_ ? 20.0f : 15.0f,
         L"zh-TW", &pTextFormat_);
   }
 }
@@ -164,16 +190,31 @@ void TooltipWindow::createDeviceResources_() {
 
     if (pRenderTarget_) {
       pRenderTarget_->CreateSolidColorBrush(
-          D2D1::ColorF(0x000000),  // Black text
+          D2D1::ColorF(0x000000),
           &pTextBrush_);
       pRenderTarget_->CreateSolidColorBrush(
-          D2D1::ColorF(0xFFFFFFE0),  // Light yellow background
+          D2D1::ColorF(keyKeyPreeditStyle_ ? 0xF4F4F4 : 0xFFFFE0),
           &pBgBrush_);
       pRenderTarget_->CreateSolidColorBrush(
-          D2D1::ColorF(0x000000),  // Black border
+          D2D1::ColorF(keyKeyPreeditStyle_ ? 0x707070 : 0x000000),
           &pBorderBrush_);
     }
   }
+}
+
+void TooltipWindow::SetKeyKeyPreeditStyle(bool enabled) {
+  if (keyKeyPreeditStyle_ == enabled) return;
+  keyKeyPreeditStyle_ = enabled;
+  if (pTextLayout_) {
+    pTextLayout_->Release();
+    pTextLayout_ = nullptr;
+  }
+  if (pTextFormat_) {
+    pTextFormat_->Release();
+    pTextFormat_ = nullptr;
+  }
+  discardDeviceResources_();
+  createDeviceIndependentResources_();
 }
 
 void TooltipWindow::discardDeviceResources_() {
@@ -299,7 +340,9 @@ void TooltipWindow::Destroy() {
   }
 }
 
-void TooltipWindow::UpdateUI(const std::string& tooltipText) {
+void TooltipWindow::UpdateUI(const std::string& tooltipText,
+                             size_t utf8CursorIndex, int utf8UnderlineStart,
+                             int utf8UnderlineEnd) {
   if (!hwnd_) return;
 
   if (tooltipText.empty()) {
@@ -313,6 +356,24 @@ void TooltipWindow::UpdateUI(const std::string& tooltipText) {
   //            long>(tooltipText.size()));
   dpiScale_ = GetDpiScaleForWindow(hwnd_);
   displayString_ = McBopomofo::Utf8ToUtf16(tooltipText);
+  cursorUtf16Offset_ =
+      utf8CursorIndex == std::string::npos
+          ? displayString_.size()
+          : std::min(displayString_.size(),
+                     McBopomofo::Utf8OffsetToUtf16Offset(tooltipText,
+                                                        utf8CursorIndex));
+  underlineUtf16Start_ = 0;
+  underlineUtf16End_ = 0;
+  if (utf8UnderlineStart >= 0 &&
+      utf8UnderlineEnd > utf8UnderlineStart) {
+    underlineUtf16Start_ = McBopomofo::Utf8OffsetToUtf16Offset(
+        tooltipText, static_cast<size_t>(utf8UnderlineStart));
+    underlineUtf16End_ = McBopomofo::Utf8OffsetToUtf16Offset(
+        tooltipText, static_cast<size_t>(utf8UnderlineEnd));
+    underlineUtf16Start_ =
+        std::min(underlineUtf16Start_, displayString_.size());
+    underlineUtf16End_ = std::min(underlineUtf16End_, displayString_.size());
+  }
   rebuildLayoutAndResize_();
 }
 
@@ -337,8 +398,9 @@ void TooltipWindow::rebuildLayoutAndResize_() {
   if (renderMode_ == RenderMode::kGDI) {
     HDC screenDc = GetDC(nullptr);
     if (screenDc) {
-      const LONG textHeight =
-          -std::max(11L, static_cast<LONG>(std::lround(15.0f * dpiScale_)));
+      const float fontSize = keyKeyPreeditStyle_ ? 20.0f : 15.0f;
+      const LONG textHeight = -std::max(
+          11L, static_cast<LONG>(std::lround(fontSize * dpiScale_)));
       HFONT textFont = CreateUiFont(L"Microsoft JhengHei UI", textHeight);
       HFONT emojiFont = CreateUiFont(L"Segoe UI Emoji", textHeight);
       HGDIOBJ oldFont = SelectObject(screenDc, textFont);
@@ -348,9 +410,11 @@ void TooltipWindow::rebuildLayoutAndResize_() {
 
       width = DrawOrMeasureTooltipRun(screenDc, displayString_, 0, 0, textFont,
                                       emojiFont, false) +
-              static_cast<int>(std::lround(16.0f * dpiScale_));
+              static_cast<int>(std::lround(
+                  (keyKeyPreeditStyle_ ? 20.0f : 16.0f) * dpiScale_));
       height = (tm.tmHeight + tm.tmExternalLeading) +
-               static_cast<int>(std::lround(8.0f * dpiScale_));
+               static_cast<int>(std::lround(
+                   (keyKeyPreeditStyle_ ? 10.0f : 8.0f) * dpiScale_));
 
       DeleteObject(textFont);
       DeleteObject(emojiFont);
@@ -367,8 +431,10 @@ void TooltipWindow::rebuildLayoutAndResize_() {
       textHeight = metrics.height;
     }
 
-    width = (int)std::ceil(textWidth * dpiScale_) + (int)(16 * dpiScale_);
-    height = (int)std::ceil(textHeight * dpiScale_) + (int)(8 * dpiScale_);
+    width = (int)std::ceil(textWidth * dpiScale_) +
+            (int)((keyKeyPreeditStyle_ ? 20 : 16) * dpiScale_);
+    height = (int)std::ceil(textHeight * dpiScale_) +
+             (int)((keyKeyPreeditStyle_ ? 10 : 8) * dpiScale_);
   }
 
   // Enforce a minimum size
@@ -462,11 +528,15 @@ LRESULT TooltipWindow::onPaint_(HWND hwnd) {
   if (activeMode == RenderMode::kGDI) {
     RECT rc;
     GetClientRect(hwnd, &rc);
-    HBRUSH bgBrush = CreateSolidBrush(RGB(255, 255, 224));
+    HBRUSH bgBrush = CreateSolidBrush(keyKeyPreeditStyle_
+                                         ? RGB(244, 244, 244)
+                                         : RGB(255, 255, 224));
     FillRect(hdc, &rc, bgBrush);
     DeleteObject(bgBrush);
 
-    HPEN borderPen = CreatePen(PS_SOLID, 1, RGB(0, 0, 0));
+    HPEN borderPen = CreatePen(
+        PS_SOLID, 1,
+        keyKeyPreeditStyle_ ? RGB(112, 112, 112) : RGB(0, 0, 0));
     HGDIOBJ oldPen = SelectObject(hdc, borderPen);
     HGDIOBJ oldBrush = SelectObject(hdc, GetStockObject(NULL_BRUSH));
     Rectangle(hdc, rc.left, rc.top, rc.right, rc.bottom);
@@ -474,14 +544,62 @@ LRESULT TooltipWindow::onPaint_(HWND hwnd) {
     SelectObject(hdc, oldPen);
     DeleteObject(borderPen);
 
-    const LONG textHeight =
-        -std::max(11L, static_cast<LONG>(std::lround(15.0f * dpiScale_)));
+    const float fontSize = keyKeyPreeditStyle_ ? 20.0f : 15.0f;
+    const LONG textHeight = -std::max(
+        11L, static_cast<LONG>(std::lround(fontSize * dpiScale_)));
     HFONT textFont = CreateUiFont(L"Microsoft JhengHei UI", textHeight);
     HFONT emojiFont = CreateUiFont(L"Segoe UI Emoji", textHeight);
     DrawOrMeasureTooltipRun(hdc, displayString_,
-                            static_cast<int>(std::lround(8.0f * dpiScale_)),
-                            static_cast<int>(std::lround(4.0f * dpiScale_)),
+                            static_cast<int>(std::lround(
+                                (keyKeyPreeditStyle_ ? 10.0f : 8.0f) *
+                                dpiScale_)),
+                            static_cast<int>(std::lround(
+                                (keyKeyPreeditStyle_ ? 5.0f : 4.0f) *
+                                dpiScale_)),
                             textFont, emojiFont, true);
+    const bool hasPhraseUnderline =
+        underlineUtf16End_ > underlineUtf16Start_;
+    if (keyKeyPreeditStyle_ &&
+        (hasPhraseUnderline || cursorUtf16Offset_ < displayString_.size())) {
+      const int textX = static_cast<int>(std::lround(10.0f * dpiScale_));
+      const size_t underlineStartOffset =
+          hasPhraseUnderline ? underlineUtf16Start_ : cursorUtf16Offset_;
+      const size_t underlineEndOffset =
+          hasPhraseUnderline
+              ? underlineUtf16End_
+              : NextUtf16CodePointOffset(displayString_, cursorUtf16Offset_);
+      const int underlineStart =
+          textX + DrawOrMeasureTooltipRun(
+                      hdc,
+                      std::wstring_view(displayString_).substr(
+                          0, underlineStartOffset),
+                      0, 0, textFont, emojiFont, false);
+      const int underlineWidth = DrawOrMeasureTooltipRun(
+          hdc,
+          std::wstring_view(displayString_).substr(
+              underlineStartOffset,
+              underlineEndOffset - underlineStartOffset),
+          0, 0, textFont, emojiFont, false);
+      HPEN underlinePen =
+          CreatePen(PS_SOLID, std::max(2, (int)(2 * dpiScale_)),
+                    RGB(180, 65, 183));
+      HGDIOBJ oldUnderlinePen = SelectObject(hdc, underlinePen);
+      const int underlineY = rc.bottom - std::max(3, (int)(4 * dpiScale_));
+      MoveToEx(hdc, underlineStart, underlineY, nullptr);
+      LineTo(hdc, underlineStart + std::max(underlineWidth, 2), underlineY);
+      SelectObject(hdc, oldUnderlinePen);
+      DeleteObject(underlinePen);
+    } else if (keyKeyPreeditStyle_) {
+      HPEN caretPen = CreatePen(PS_SOLID, std::max(2, (int)(3 * dpiScale_)),
+                                RGB(180, 65, 183));
+      HGDIOBJ oldCaretPen = SelectObject(hdc, caretPen);
+      MoveToEx(hdc, rc.right - std::max(3, (int)(4 * dpiScale_)),
+               std::max(2, (int)(3 * dpiScale_)), nullptr);
+      LineTo(hdc, rc.right - std::max(3, (int)(4 * dpiScale_)),
+             rc.bottom - std::max(2, (int)(3 * dpiScale_)));
+      SelectObject(hdc, oldCaretPen);
+      DeleteObject(caretPen);
+    }
     DeleteObject(textFont);
     DeleteObject(emojiFont);
     EndPaint(hwnd, &ps);
@@ -504,6 +622,44 @@ LRESULT TooltipWindow::onPaint_(HWND hwnd) {
                                      D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
     }
 
+    const bool hasPhraseUnderline =
+        underlineUtf16End_ > underlineUtf16Start_;
+    if (keyKeyPreeditStyle_ && pTextLayout_ &&
+        (hasPhraseUnderline || cursorUtf16Offset_ < displayString_.size())) {
+      const size_t underlineStartOffset =
+          hasPhraseUnderline ? underlineUtf16Start_ : cursorUtf16Offset_;
+      const size_t underlineEndOffset =
+          hasPhraseUnderline
+              ? underlineUtf16End_
+              : NextUtf16CodePointOffset(displayString_, cursorUtf16Offset_);
+      const size_t lastCodePointOffset =
+          PreviousUtf16CodePointOffset(displayString_, underlineEndOffset);
+      DWRITE_HIT_TEST_METRICS startHit = {};
+      DWRITE_HIT_TEST_METRICS endHit = {};
+      FLOAT startX = 0.0f;
+      FLOAT startY = 0.0f;
+      FLOAT endX = 0.0f;
+      FLOAT endY = 0.0f;
+      if (SUCCEEDED(pTextLayout_->HitTestTextPosition(
+              static_cast<UINT32>(underlineStartOffset), FALSE, &startX,
+              &startY, &startHit)) &&
+          SUCCEEDED(pTextLayout_->HitTestTextPosition(
+              static_cast<UINT32>(lastCodePointOffset), TRUE, &endX, &endY,
+              &endHit))) {
+        ID2D1SolidColorBrush* underlineBrush = nullptr;
+        if (SUCCEEDED(pRenderTarget_->CreateSolidColorBrush(
+                D2D1::ColorF(0xB441B7), &underlineBrush))) {
+          const float y = 4.0f + startHit.top + startHit.height + 1.0f;
+          const float width = std::max(endX - startX, 2.0f);
+          pRenderTarget_->DrawLine(
+              D2D1::Point2F(8.0f + startX, y),
+              D2D1::Point2F(8.0f + startX + width, y),
+              underlineBrush, 2.0f);
+          underlineBrush->Release();
+        }
+      }
+    }
+
     // Draw border
     D2D1_SIZE_F size = pRenderTarget_->GetSize();
     pRenderTarget_->SetTransform(D2D1::Matrix3x2F::Identity());
@@ -511,6 +667,19 @@ LRESULT TooltipWindow::onPaint_(HWND hwnd) {
       pRenderTarget_->DrawRectangle(
           D2D1::RectF(0.5f, 0.5f, size.width - 0.5f, size.height - 0.5f),
           pBorderBrush_, 1.0f);
+    }
+
+    if (keyKeyPreeditStyle_ && !hasPhraseUnderline &&
+        cursorUtf16Offset_ >= displayString_.size()) {
+      ID2D1SolidColorBrush* caretBrush = nullptr;
+      if (SUCCEEDED(pRenderTarget_->CreateSolidColorBrush(
+              D2D1::ColorF(0xB441B7), &caretBrush))) {
+        pRenderTarget_->FillRectangle(
+            D2D1::RectF(size.width - 4.0f, 3.0f, size.width - 1.0f,
+                        size.height - 3.0f),
+            caretBrush);
+        caretBrush->Release();
+      }
     }
 
     HRESULT hr = pRenderTarget_->EndDraw();

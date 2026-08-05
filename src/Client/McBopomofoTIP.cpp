@@ -1091,12 +1091,13 @@ STDAPI McBopomofoTIP::GetDisplayAttributeInfo(
   *ppInfo = nullptr;
 
   if (IsEqualGUID(guidInfo, c_guidDisplayAttributeInput)) {
-    TF_DISPLAYATTRIBUTE da;
-    ZeroMemory(&da, sizeof(da));
-    // Avoid host-rendered dotted lines overlapping CJK glyphs.
-    da.lsStyle = TF_LS_NONE;
+    TF_DISPLAYATTRIBUTE da = SolidInputDisplayAttribute();
     *ppInfo = new CDisplayAttributeInfo(c_guidDisplayAttributeInput, da,
-                                        L"Win-McBopomofo Input");
+                                        L"KeyKey 41 Solid Underline Input");
+  } else if (IsEqualGUID(guidInfo, c_guidDisplayAttributeDotted)) {
+    TF_DISPLAYATTRIBUTE da = DottedInputDisplayAttribute();
+    *ppInfo = new CDisplayAttributeInfo(c_guidDisplayAttributeDotted, da,
+                                        L"KeyKey 41 Dotted Input");
   } else if (IsEqualGUID(guidInfo, c_guidDisplayAttributeMarked)) {
     TF_DISPLAYATTRIBUTE da;
     ZeroMemory(&da, sizeof(da));

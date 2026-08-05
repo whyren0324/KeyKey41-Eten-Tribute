@@ -54,8 +54,11 @@ class TooltipWindow {
   bool Create(HINSTANCE hInstance);
   void Destroy();
   void SetOwnerWindow(HWND ownerHwnd);
+  void SetKeyKeyPreeditStyle(bool enabled);
 
-  void UpdateUI(const std::string& tooltipText);
+  void UpdateUI(const std::string& tooltipText,
+                size_t utf8CursorIndex = std::string::npos,
+                int utf8UnderlineStart = -1, int utf8UnderlineEnd = -1);
   void Move(int x, int y);
   void Hide();
 
@@ -91,6 +94,10 @@ class TooltipWindow {
   RenderMode renderMode_;
   float dpiScale_;
   std::wstring displayString_;
+  size_t cursorUtf16Offset_;
+  size_t underlineUtf16Start_;
+  size_t underlineUtf16End_;
+  bool keyKeyPreeditStyle_;
 
   ID2D1Factory* pD2DFactory_;
   ID2D1HwndRenderTarget* pRenderTarget_;

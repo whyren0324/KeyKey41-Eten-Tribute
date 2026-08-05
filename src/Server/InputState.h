@@ -108,18 +108,26 @@ struct ChoosingCandidate : NotEmpty {
   struct Candidate;
 
   ChoosingCandidate(const std::string& buf, const size_t index,
-                    const size_t originalIndex, std::vector<Candidate> cs)
+                    const size_t originalIndex, std::vector<Candidate> cs,
+                    size_t targetStart = 0, size_t targetEnd = 0)
       : NotEmpty(buf, index),
         candidates(std::move(cs)),
-        originalCursor(originalIndex) {}
+        originalCursor(originalIndex),
+        targetStartIndex(targetStart),
+        targetEndIndex(targetEnd) {}
 
   ChoosingCandidate(const ChoosingCandidate& state)
       : NotEmpty(state.composingBuffer, state.cursorIndex),
         candidates(state.candidates),
-        originalCursor(state.originalCursor) {}
+        originalCursor(state.originalCursor),
+        targetStartIndex(state.targetStartIndex),
+        targetEndIndex(state.targetEndIndex) {}
 
   const std::vector<Candidate> candidates;
   size_t originalCursor;
+  // UTF-8 byte offsets in composingBuffer for the grid node being replaced.
+  const size_t targetStartIndex;
+  const size_t targetEndIndex;
 
   struct Candidate {
     Candidate(std::string r, std::string v, std::string rawValue)
@@ -144,7 +152,8 @@ struct ChoosingPunctuationList : ChoosingCandidate {
 
   ChoosingPunctuationList(const ChoosingCandidate& state)
       : ChoosingCandidate(state.composingBuffer, state.cursorIndex,
-                          state.originalCursor, state.candidates) {}
+                          state.originalCursor, state.candidates,
+                          state.targetStartIndex, state.targetEndIndex) {}
 };
 
 // Represents the Marking state where the user uses Shift-Left/Shift-Right
