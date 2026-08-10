@@ -34,6 +34,11 @@ void DllRelease();
 void LogMessage(const char* format, ...);
 void LogMessageFileOnly(const char* format, ...);
 
+// Starts the architecture-matched backend from the TIP DLL directory when its
+// named pipe is not available yet. The server enforces its own single-instance
+// policy, so this is safe when several applications activate the TIP at once.
+void EnsureServerStarted();
+
 float GetDpiScaleForWindow(HWND hwnd);
 
 void EnableWindowDropShadow(HWND hwnd);

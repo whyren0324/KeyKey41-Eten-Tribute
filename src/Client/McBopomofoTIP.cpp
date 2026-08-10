@@ -608,6 +608,8 @@ STDAPI McBopomofoTIP::ActivateEx(ITfThreadMgr* ptim, TfClientId tid,
     return E_INVALIDARG;
   }
 
+  EnsureServerStarted();
+
   updateProcessDisabledState_();
 
   ptim_ = ptim;
@@ -961,6 +963,10 @@ STDAPI McBopomofoTIP::OnKeyDown(ITfContext* pic, WPARAM wParam, LPARAM lParam,
   }
 
   GetKeyboardState(keyboardState);
+  // Caps Lock controls English letter casing, but must not change the physical
+  // letter keys sent to the Bopomofo engine while Chinese mode is open. Keep
+  // the high bit so an actual VK_CAPITAL key press is still represented.
+  keyboardState[VK_CAPITAL] &= 0x80;
   WCHAR chars[2] = {0};
   if (ToUnicode((UINT)wParam, (lParam >> 16) & 0xFF, keyboardState, chars, 2,
                 0) == 1) {
