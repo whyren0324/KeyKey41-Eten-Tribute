@@ -3,6 +3,7 @@
 #pragma code_page(65001)
 
 #include "resource.h"
+#include "WinMcBopomofoVersion.rcinc"
 /////////////////////////////////////////////////////////////////////////////
 // Chinese (Traditional, Taiwan) resources
 
@@ -133,8 +134,8 @@ IDI_ICON_APP            ICON                    "..\\Client\\res\\app.ico"
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 0,9,4,0
- PRODUCTVERSION 0,9,4,0
+ FILEVERSION WINMCBOPOMOFO_VERSION_NUM
+ PRODUCTVERSION WINMCBOPOMOFO_VERSION_NUM
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -152,12 +153,12 @@ BEGIN
             VALUE "Comments", "MIT License"
             VALUE "CompanyName", "OpenVanilla.org"
             VALUE "FileDescription", "KeyKey 41 ETen Tribute Configuration"
-            VALUE "FileVersion", "0.9.4.0"
+            VALUE "FileVersion", WINMCBOPOMOFO_VERSION_STR
             VALUE "InternalName", "McBopomofoConfig"
             VALUE "LegalCopyright", "McBopomofo Authors. All rights reserved."
             VALUE "OriginalFilename", "McBopomofoConfig.exe"
             VALUE "ProductName", "KeyKey 41 - ETen Tribute"
-            VALUE "ProductVersion", "0.9.8.0"
+            VALUE "ProductVersion", WINMCBOPOMOFO_VERSION_STR
         END
     END
     BLOCK "VarFileInfo"

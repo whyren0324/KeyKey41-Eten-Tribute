@@ -259,6 +259,13 @@ bool IsShiftKey(WPARAM wParam) {
   }
 }
 
+bool IsNumberPadPrintableKey(WPARAM wParam) {
+  return (wParam >= VK_NUMPAD0 && wParam <= VK_NUMPAD9) ||
+         wParam == VK_DECIMAL || wParam == VK_ADD || wParam == VK_SUBTRACT ||
+         wParam == VK_MULTIPLY || wParam == VK_DIVIDE ||
+         wParam == VK_SEPARATOR;
+}
+
 bool IsAltPressed(const BYTE keyboardState[256]);
 
 bool IsConversionToggleHotkey(WPARAM wParam,
@@ -608,6 +615,8 @@ STDAPI McBopomofoTIP::ActivateEx(ITfThreadMgr* ptim, TfClientId tid,
     return E_INVALIDARG;
   }
 
+  EnsureServerStarted();
+
   updateProcessDisabledState_();
 
   ptim_ = ptim;
@@ -860,7 +869,10 @@ STDAPI McBopomofoTIP::OnTestKeyDown(ITfContext* pic, WPARAM wParam,
 
   // If the composition buffer is empty, do not swallow control or editing
   // keys, allowing them to pass through to the host application safely.
-  if (IsHostEditingKey(wParam)) {
+  // Num Lock-on keypad keys also belong to the host in this state. Returning
+  // FALSE here (rather than after forwarding them to the server) is important:
+  // some TSF clients do not replay a key that OnTestKeyDown already claimed.
+  if (IsHostEditingKey(wParam) || IsNumberPadPrintableKey(wParam)) {
     *pfEaten = FALSE;
     return S_OK;
   }
@@ -961,6 +973,10 @@ STDAPI McBopomofoTIP::OnKeyDown(ITfContext* pic, WPARAM wParam, LPARAM lParam,
   }
 
   GetKeyboardState(keyboardState);
+  // Caps Lock controls English letter casing, but must not change the physical
+  // letter keys sent to the Bopomofo engine while Chinese mode is open. Keep
+  // the high bit so an actual VK_CAPITAL key press is still represented.
+  keyboardState[VK_CAPITAL] &= 0x80;
   WCHAR chars[2] = {0};
   if (ToUnicode((UINT)wParam, (lParam >> 16) & 0xFF, keyboardState, chars, 2,
                 0) == 1) {

@@ -139,6 +139,65 @@ void LogMessageImpl(bool relayToServer, const char* format, va_list args) {
 
 }  // namespace
 
+void EnsureServerStarted() {
+  // A zero-timeout check avoids delaying TIP activation when the server is
+  // already running. ERROR_SEM_TIMEOUT means all pipe instances are busy, but
+  // the server still exists and must not be started again.
+  if (WaitNamedPipeA(McBopomofo::IPC::PIPE_NAME, 0) ||
+      GetLastError() == ERROR_SEM_TIMEOUT) {
+    return;
+  }
+
+  HMODULE module = nullptr;
+  if (!GetModuleHandleExW(
+          GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+              GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+          reinterpret_cast<LPCWSTR>(&EnsureServerStarted), &module)) {
+    return;
+  }
+
+  wchar_t modulePath[MAX_PATH] = {};
+  DWORD pathLength = GetModuleFileNameW(
+      module, modulePath, static_cast<DWORD>(std::size(modulePath)));
+  if (pathLength == 0 || pathLength >= std::size(modulePath)) {
+    return;
+  }
+
+  std::wstring moduleDirectory(modulePath, pathLength);
+  const size_t separator = moduleDirectory.find_last_of(L"\\/");
+  if (separator == std::wstring::npos) {
+    return;
+  }
+  moduleDirectory.resize(separator);
+
+#if defined(_WIN64)
+  const wchar_t* architectureServer = L"McBopomofoServer_x64.exe";
+#else
+  const wchar_t* architectureServer = L"McBopomofoServer_x86.exe";
+#endif
+  const wchar_t* serverNames[] = {architectureServer,
+                                  L"McBopomofoServer.exe"};
+
+  for (const wchar_t* serverName : serverNames) {
+    const std::wstring serverPath =
+        moduleDirectory + L"\\" + serverName;
+    if (GetFileAttributesW(serverPath.c_str()) == INVALID_FILE_ATTRIBUTES) {
+      continue;
+    }
+
+    STARTUPINFOW startupInfo = {};
+    startupInfo.cb = sizeof(startupInfo);
+    PROCESS_INFORMATION processInfo = {};
+    if (CreateProcessW(serverPath.c_str(), nullptr, nullptr, nullptr, FALSE, 0,
+                       nullptr, moduleDirectory.c_str(), &startupInfo,
+                       &processInfo)) {
+      CloseHandle(processInfo.hThread);
+      CloseHandle(processInfo.hProcess);
+    }
+    return;
+  }
+}
+
 void LogMessage(const char* format, ...) {
 #ifndef NDEBUG
   va_list args;

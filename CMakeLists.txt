@@ -117,7 +117,7 @@ target_include_directories(CompositionDisplayPreview PRIVATE
     ${CMAKE_SOURCE_DIR}/src/Client
     ${CMAKE_SOURCE_DIR}/src/Common)
 target_link_libraries(CompositionDisplayPreview PRIVATE
-    d2d1 dwrite dwmapi uxtheme)
+    Common d2d1 dwrite dwmapi uxtheme)
 
 add_executable(PipeTest tests/PipeTest.cpp)
 target_include_directories(PipeTest PRIVATE ${CMAKE_SOURCE_DIR}/src/Common ${CMAKE_SOURCE_DIR}/third_party/OpenCC/deps/googletest-1.15.0/googletest/include)
