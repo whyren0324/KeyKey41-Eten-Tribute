@@ -81,6 +81,7 @@ class ServerPopupController {
   struct PopupLayout {
     bool showCandidateWindow = false;
     bool showTooltipWindow = false;
+    bool showPreeditWindow = false;
     uint64_t ownerHwnd = 0;
     int anchorLeft = 0;
     int anchorTop = 0;
@@ -91,11 +92,14 @@ class ServerPopupController {
   void Create(HINSTANCE hInstance) {
     candidateWindow_.Create(hInstance);
     tooltipWindow_.Create(hInstance);
+    preeditWindow_.SetKeyKeyPreeditStyle(true);
+    preeditWindow_.Create(hInstance);
   }
 
   void Destroy() {
     candidateWindow_.Destroy();
     tooltipWindow_.Destroy();
+    preeditWindow_.Destroy();
   }
 
   void SetState(const IPC::StateUpdatePayload& state) {
@@ -126,9 +130,11 @@ class ServerPopupController {
                    static_cast<LONG>(layout.anchorBottom)};
 
     if (!hasLayout ||
-        (!layout.showCandidateWindow && !layout.showTooltipWindow)) {
+        (!layout.showCandidateWindow && !layout.showTooltipWindow &&
+         !layout.showPreeditWindow)) {
       candidateWindow_.Hide();
       tooltipWindow_.Hide();
+      preeditWindow_.Hide();
       return;
     }
 
@@ -138,6 +144,19 @@ class ServerPopupController {
     const bool showTooltip = layout.showTooltipWindow && !state.tooltip.empty();
     const bool showCandidate =
         layout.showCandidateWindow && !state.candidates.empty();
+    const bool showPreedit =
+        layout.showPreeditWindow && !state.composingBuffer.empty() &&
+        state.compositionDisplayMode ==
+            IPC::CompositionDisplayMode::kKeyKeyFloating;
+
+    if (showPreedit) {
+      preeditWindow_.SetOwnerWindow(owner);
+      preeditWindow_.UpdateUI(state.composingBuffer,
+                              static_cast<size_t>(state.cursorIndex),
+                              state.markStart, state.markEnd);
+    } else {
+      preeditWindow_.Hide();
+    }
 
     if (showTooltip) {
       tooltipWindow_.SetOwnerWindow(owner);
@@ -164,12 +183,13 @@ class ServerPopupController {
       candidateWindow_.Hide();
     }
 
-    MoveWindows(anchor, showCandidate, showTooltip);
+    MoveWindows(anchor, showCandidate, showTooltip, showPreedit);
   }
 
  private:
-  void MoveWindows(const RECT& anchor, bool showCandidate, bool showTooltip) {
-    if (!showCandidate && !showTooltip) {
+  void MoveWindows(const RECT& anchor, bool showCandidate, bool showTooltip,
+                   bool showPreedit) {
+    if (!showCandidate && !showTooltip && !showPreedit) {
       return;
     }
 
@@ -182,15 +202,26 @@ class ServerPopupController {
     const int screenBottom = mi.rcWork.bottom;
     const int screenRight = mi.rcWork.right;
     const int screenLeft = mi.rcWork.left;
+    const int screenTop = mi.rcWork.top;
 
     const int candidateHeight =
         showCandidate ? candidateWindow_.GetHeight() : 0;
     const int candidateWidth = showCandidate ? candidateWindow_.GetWidth() : 0;
     const int tooltipHeight = showTooltip ? tooltipWindow_.GetHeight() : 0;
     const int tooltipWidth = showTooltip ? tooltipWindow_.GetWidth() : 0;
+    const int preeditHeight = showPreedit ? preeditWindow_.GetHeight() : 0;
+    const int preeditWidth = showPreedit ? preeditWindow_.GetWidth() : 0;
     const int gap = showCandidate && showTooltip ? 4 : 0;
     const int totalRequiredHeight = tooltipHeight + gap + candidateHeight;
-    const int yBelow = anchor.bottom + 10;
+    // The KeyKey preedit window is taller than a normal caret rectangle.
+    // Keep the candidate window below both, otherwise it can cover the lower
+    // half of the preedit glyphs on compact line-height hosts.
+    constexpr int kPreeditCandidateGap = 8;
+    const int yBelow =
+        showPreedit
+            ? std::max(anchor.bottom + 10,
+                       anchor.top + preeditHeight + kPreeditCandidateGap)
+            : anchor.bottom + 10;
 
     int candidateY = 0;
     int tooltipY = 0;
@@ -217,6 +248,20 @@ class ServerPopupController {
     if (showCandidate) {
       candidateWindow_.Move(x, candidateY);
     }
+    if (showPreedit) {
+      int preeditX = anchor.right + 4;
+      if (preeditX + preeditWidth > screenRight) {
+        preeditX = anchor.left - preeditWidth - 4;
+      }
+      preeditX = std::max(screenLeft,
+                          std::min(preeditX, screenRight - preeditWidth));
+      int preeditY = anchor.top;
+      if (preeditY + preeditHeight > screenBottom) {
+        preeditY = screenBottom - preeditHeight;
+      }
+      preeditY = std::max(screenTop, preeditY);
+      preeditWindow_.Move(preeditX, preeditY);
+    }
   }
 
   std::mutex mutex_;
@@ -225,6 +270,7 @@ class ServerPopupController {
   bool hasLayout_ = false;
   CandidateWindow candidateWindow_;
   TooltipWindow tooltipWindow_;
+  TooltipWindow preeditWindow_;
 };
 
 ServerPopupController* g_ServerPopupController = nullptr;
@@ -859,6 +905,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
         ServerPopupController::PopupLayout layout;
         layout.showCandidateWindow = !ui.currentState.candidates.empty();
         layout.showTooltipWindow = !ui.currentState.tooltip.empty();
+        layout.showPreeditWindow =
+            ui.currentState.compositionDisplayMode ==
+                IPC::CompositionDisplayMode::kKeyKeyFloating &&
+            !ui.currentState.composingBuffer.empty();
         layout.ownerHwnd = keyReq.ownerHwnd;
         layout.anchorLeft = keyReq.anchorLeft;
         layout.anchorTop = keyReq.anchorTop;

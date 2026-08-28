@@ -50,6 +50,6 @@ jobs:
       - name: Upload Artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: KeyKey41-Eten-Tribute-0.9.4-beta.1
+          name: KeyKey41-Eten-Tribute-0.9.8-beta.1
           path: |
-            dist/KeyKey41-Eten-Tribute-x64-0.9.4-beta.1.msi
+            dist/KeyKey41-Eten-Tribute-x64-0.9.8-beta.1.msi

@@ -259,6 +259,13 @@ bool IsShiftKey(WPARAM wParam) {
   }
 }
 
+bool IsNumberPadPrintableKey(WPARAM wParam) {
+  return (wParam >= VK_NUMPAD0 && wParam <= VK_NUMPAD9) ||
+         wParam == VK_DECIMAL || wParam == VK_ADD || wParam == VK_SUBTRACT ||
+         wParam == VK_MULTIPLY || wParam == VK_DIVIDE ||
+         wParam == VK_SEPARATOR;
+}
+
 bool IsAltPressed(const BYTE keyboardState[256]);
 
 bool IsConversionToggleHotkey(WPARAM wParam,
@@ -862,7 +869,10 @@ STDAPI McBopomofoTIP::OnTestKeyDown(ITfContext* pic, WPARAM wParam,
 
   // If the composition buffer is empty, do not swallow control or editing
   // keys, allowing them to pass through to the host application safely.
-  if (IsHostEditingKey(wParam)) {
+  // Num Lock-on keypad keys also belong to the host in this state. Returning
+  // FALSE here (rather than after forwarding them to the server) is important:
+  // some TSF clients do not replay a key that OnTestKeyDown already claimed.
+  if (IsHostEditingKey(wParam) || IsNumberPadPrintableKey(wParam)) {
     *pfEaten = FALSE;
     return S_OK;
   }
@@ -1097,12 +1107,13 @@ STDAPI McBopomofoTIP::GetDisplayAttributeInfo(
   *ppInfo = nullptr;
 
   if (IsEqualGUID(guidInfo, c_guidDisplayAttributeInput)) {
-    TF_DISPLAYATTRIBUTE da;
-    ZeroMemory(&da, sizeof(da));
-    // Avoid host-rendered dotted lines overlapping CJK glyphs.
-    da.lsStyle = TF_LS_NONE;
+    TF_DISPLAYATTRIBUTE da = SolidInputDisplayAttribute();
     *ppInfo = new CDisplayAttributeInfo(c_guidDisplayAttributeInput, da,
-                                        L"Win-McBopomofo Input");
+                                        L"KeyKey 41 Solid Underline Input");
+  } else if (IsEqualGUID(guidInfo, c_guidDisplayAttributeDotted)) {
+    TF_DISPLAYATTRIBUTE da = DottedInputDisplayAttribute();
+    *ppInfo = new CDisplayAttributeInfo(c_guidDisplayAttributeDotted, da,
+                                        L"KeyKey 41 Dotted Input");
   } else if (IsEqualGUID(guidInfo, c_guidDisplayAttributeMarked)) {
     TF_DISPLAYATTRIBUTE da;
     ZeroMemory(&da, sizeof(da));

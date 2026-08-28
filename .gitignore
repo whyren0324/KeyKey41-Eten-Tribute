@@ -5,6 +5,7 @@ lib/
 obj/
 out/
 dist/
+test-output/
 
 # Other temporary files
 *.tmp

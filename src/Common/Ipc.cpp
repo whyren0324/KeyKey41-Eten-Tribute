@@ -320,7 +320,9 @@ std::string SerializeStateUpdate(const StateUpdatePayload& payload) {
      << payload.candidateWindowColors.background << "\n"
      << payload.candidateWindowColors.border << "\n"
      << payload.candidateWindowColors.highlightBackground << "\n"
-     << payload.candidateWindowColors.highlightText << "\n";
+     << payload.candidateWindowColors.highlightText << "\n"
+     << static_cast<int>(payload.compositionDisplayMode) << "\n"
+     << payload.compositionTextColor << "\n";
   return ss.str();
 }
 
@@ -385,6 +387,14 @@ bool DeserializeStateUpdate(const std::string& data,
         static_cast<uint32_t>(std::stoul(line));
     if (!std::getline(ss, line)) return false;
     payload.candidateWindowColors.highlightText =
+        static_cast<uint32_t>(std::stoul(line));
+    if (!std::getline(ss, line)) return false;
+    int compositionMode = std::stoi(line);
+    if (compositionMode < 0 || compositionMode > 2) compositionMode = 0;
+    payload.compositionDisplayMode =
+        static_cast<CompositionDisplayMode>(compositionMode);
+    if (!std::getline(ss, line)) return false;
+    payload.compositionTextColor =
         static_cast<uint32_t>(std::stoul(line));
   } catch (...) {
     return false;

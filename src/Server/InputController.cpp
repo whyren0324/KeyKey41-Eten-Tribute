@@ -258,6 +258,8 @@ IPC::StateUpdatePayload InputController::buildStateUpdatePayload_() const {
   payload.candidateKeys = candidateKeys_;
   payload.candidateKeysCount = candidateKeysCount_;
   payload.candidateWindowColors = candidateWindowColors_;
+  payload.compositionDisplayMode = compositionDisplayMode_;
+  payload.compositionTextColor = compositionTextColor_;
 
   auto* state = currentState_.get();
   if (auto* notEmptyState = dynamic_cast<InputStates::NotEmpty*>(state)) {
@@ -280,6 +282,12 @@ IPC::StateUpdatePayload InputController::buildStateUpdatePayload_() const {
                  dynamic_cast<InputStates::ChoosingCandidate*>(state)) {
     payload.composingBuffer = choosing->composingBuffer;
     payload.cursorIndex = static_cast<int>(choosing->cursorIndex);
+    if (compositionDisplayMode_ ==
+            IPC::CompositionDisplayMode::kKeyKeyFloating &&
+        !choosing->candidates.empty()) {
+      payload.markStart = static_cast<int>(choosing->targetStartIndex);
+      payload.markEnd = static_cast<int>(choosing->targetEndIndex);
+    }
     for (const auto& c : choosing->candidates) {
       payload.candidates.push_back(c.value);
       if (CodePointCount(c.value) > 8) {

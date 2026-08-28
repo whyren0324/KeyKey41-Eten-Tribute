@@ -138,6 +138,12 @@ void Settings::load() {
       readInt_(L"UI", L"CandidateBackgroundColor", 0x000000);
   candidateTextColor_ =
       readInt_(L"UI", L"CandidateTextColor", 0xFFFFFF);
+  int compositionMode = readInt_(L"UI", L"CompositionDisplayMode", 0);
+  if (compositionMode < 0 || compositionMode > 2) compositionMode = 0;
+  compositionDisplayMode_ =
+      static_cast<IPC::CompositionDisplayMode>(compositionMode);
+  compositionTextColor_ =
+      readInt_(L"UI", L"CompositionTextColor", 0xB45DB7);
   // Migrate the original beta default (Windows blue on white) to the
   // KeyKey-inspired black, white, and purple palette. Other user-selected
   // combinations remain untouched.
@@ -204,6 +210,9 @@ void Settings::save() {
   writeInt_(L"UI", L"CandidateHighlightColor", candidateHighlightColor_);
   writeInt_(L"UI", L"CandidateBackgroundColor", candidateBackgroundColor_);
   writeInt_(L"UI", L"CandidateTextColor", candidateTextColor_);
+  writeInt_(L"UI", L"CompositionDisplayMode",
+            static_cast<int>(compositionDisplayMode_));
+  writeInt_(L"UI", L"CompositionTextColor", compositionTextColor_);
   writeBool_(L"General", L"ConversionHotkeyEnabled",
              conversionHotkeyEnabled_);
   writeInt_(L"General", L"ConversionHotkeyModifiers",
@@ -254,6 +263,9 @@ void Settings::applyTo(InputController& controller) {
   controller.setCandidateWindowVertical(candidateWindowVertical_);
   controller.setSelectionAction(selectionAction_);
   controller.setCandidateFontSize(candidateFontSize_);
+  controller.setCompositionDisplayMode(compositionDisplayMode_);
+  controller.setCompositionTextColor(
+      static_cast<uint32_t>(compositionTextColor_));
   controller.setBeepOnError(beepOnError_);
   SetServerLoggingEnabled(serverLoggingEnabled_);
   FCITX_MCBOPOMOFO_INFO() << "Settings applied: ChineseConversionEnabled="

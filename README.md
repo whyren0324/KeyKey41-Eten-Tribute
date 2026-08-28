@@ -1,7 +1,7 @@
 # KeyKey 41 — 倚天紀念版
 
 ![Windows 11](https://img.shields.io/badge/Windows%2011-x64%20%2B%20x86-0078D6?logo=windows)
-![版本](https://img.shields.io/badge/版本-0.9.4--beta.1-B45DB7)
+![版本](https://img.shields.io/badge/版本-0.9.8--beta.1-B45DB7)
 ![授權](https://img.shields.io/badge/授權-MIT-green)
 
 KeyKey 41 是一套為 Windows 11 開發的繁體中文注音輸入法。它以 Yahoo! 奇摩輸入法（Yahoo KeyKey）的使用體驗為參考，採用現代 Windows TSF 架構重新實作，並保留倚天 41 鍵及傳統注音鍵盤配置。
@@ -20,13 +20,14 @@ KeyKey 41 是一套為 Windows 11 開發的繁體中文注音輸入法。它以 
 - 符號表
 - 自訂詞彙編輯、匯入與匯出
 - 候選視窗方向、字體大小、提示顏色、背景顏色及文字顏色設定
+- 三種組字顯示方式：顏色提示、微軟注音虛線、Yahoo KeyKey 浮動組字框
 - 同時包含 x64 與 x86/WOW64 輸入法元件，支援 64 位元及 32 位元 Windows 應用程式
 
 更完整的實作範圍請參閱 [KeyKey 功能對照](docs/keykey-feature-coverage.md) 與 [Windows 相容性及發行檢查表](docs/windows-compatibility-release-checklist.md)。
 
 ## 下載與安裝
 
-請到 [Releases](../../releases) 下載最新版 MSI 安裝檔。目前測試版本為 `0.9.4-beta.1`。
+請到 [Releases](../../releases) 下載最新版 MSI 安裝檔。目前測試版本為 `0.9.8-beta.1`。
 
 Windows SmartScreen 可能會因安裝檔尚未具備程式碼簽章而顯示警告。請只從本專案的 Releases 頁面下載，並對照發行說明所列的 SHA-256。
 

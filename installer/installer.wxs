@@ -5,7 +5,7 @@
   <!-- Use a static upgrade code to allow seamless upgrades later -->
   <Package Name="!(loc.ProductName)"
            Manufacturer="!(loc.Manufacturer)"
-           Version="0.9.4.0"
+           Version="0.9.8.0"
            UpgradeCode="4e4b52c0-cf52-47b1-9b7e-976c6dfcbb17"
            Scope="perMachine"
            InstallerVersion="200"
@@ -39,7 +39,7 @@
     </Property>
 
     <!-- Pre-release version normalization: allow replacing earlier internal
-         test builds whose numeric versions were higher than 0.9.4. -->
+         test builds whose numeric versions were higher than 0.9.8. -->
     <MajorUpgrade AllowDowngrades="yes" />
 
     <!-- Ensure cab files are embedded in the MSI -->

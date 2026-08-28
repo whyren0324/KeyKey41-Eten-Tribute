@@ -173,6 +173,12 @@ const std::array<ComboOption, 3> kSelectionActionOptions = {{
 const std::array<int, 8> kCandidateFontSizes = {
     {10, 12, 14, 16, 18, 20, 24, 28}};
 
+const std::array<UINT, 3> kCompositionModeLabels = {{
+    IDS_COMPOSITION_MODE_COLOR,
+    IDS_COMPOSITION_MODE_MICROSOFT,
+    IDS_COMPOSITION_MODE_KEYKEY,
+}};
+
 const std::array<int, 46> kConversionHotkeyKeys = [] {
   std::array<int, 46> keys{};
   size_t index = 0;
@@ -213,6 +219,8 @@ HWND hCandidateFontSizeCombo = nullptr;
 HWND hHighlightColorCombo = nullptr;
 HWND hBackgroundColorCombo = nullptr;
 HWND hTextColorCombo = nullptr;
+HWND hCompositionDisplayCombo = nullptr;
+HWND hCompositionColorCombo = nullptr;
 HWND hHotkeyEnabledCheck = nullptr;
 HWND hHotkeyCtrlCheck = nullptr;
 HWND hHotkeyShiftCheck = nullptr;
@@ -795,6 +803,14 @@ void SetColorSelection(HWND combo, int color) {
   SendMessageW(combo, CB_SETCURSEL, index, 0);
 }
 
+void UpdateCompositionColorEnabled() {
+  // Mode 1 now uses a host-rendered solid underline because composition text
+  // colors are not honored consistently across TSF applications.
+  HWND parent = GetParent(hCompositionColorCombo);
+  ShowWindow(GetDlgItem(parent, IDC_COMPOSITION_COLOR_LABEL), SW_HIDE);
+  ShowWindow(hCompositionColorCombo, SW_HIDE);
+}
+
 void SetConversionHotkeySelection() {
   SetChecked(hHotkeyEnabledCheck, settings.conversionHotkeyEnabled());
   const int modifiers = settings.conversionHotkeyModifiers();
@@ -843,6 +859,10 @@ void UpdateUI() {
   SetColorSelection(hBackgroundColorCombo,
                     settings.candidateBackgroundColor());
   SetColorSelection(hTextColorCombo, settings.candidateTextColor());
+  SendMessageW(hCompositionDisplayCombo, CB_SETCURSEL,
+               static_cast<int>(settings.compositionDisplayMode()), 0);
+  SetColorSelection(hCompositionColorCombo, settings.compositionTextColor());
+  UpdateCompositionColorEnabled();
   SetConversionHotkeySelection();
   SetChecked(hShiftToggleCheck, settings.shiftToggleOpenClose());
   SetChecked(hRepeatedPunctuationCheck,
@@ -890,6 +910,11 @@ void SaveAndNotify() {
       kColorOptions[ComboSelection(hBackgroundColorCombo, 0)].rgb);
   settings.setCandidateTextColor(
       kColorOptions[ComboSelection(hTextColorCombo, 0)].rgb);
+  settings.setCompositionDisplayMode(
+      static_cast<IPC::CompositionDisplayMode>(
+          ComboSelection(hCompositionDisplayCombo, 0)));
+  settings.setCompositionTextColor(
+      kColorOptions[ComboSelection(hCompositionColorCombo, 1)].rgb);
   settings.setConversionHotkeyEnabled(IsChecked(hHotkeyEnabledCheck));
   int hotkeyModifiers = (IsChecked(hHotkeyCtrlCheck) ? 1 : 0) |
                         (IsChecked(hHotkeyShiftCheck) ? 2 : 0) |
@@ -947,6 +972,8 @@ void LocalizeControls(HWND hwnd) {
   set(IDC_HIGHLIGHT_COLOR_LABEL, IDS_HIGHLIGHT_COLOR);
   set(IDC_BACKGROUND_COLOR_LABEL, IDS_BACKGROUND_COLOR);
   set(IDC_TEXT_COLOR_LABEL, IDS_TEXT_COLOR);
+  set(IDC_COMPOSITION_DISPLAY_LABEL, IDS_COMPOSITION_DISPLAY);
+  set(IDC_COMPOSITION_COLOR_LABEL, IDS_COMPOSITION_COLOR);
   set(IDC_CONVERSION_HOTKEY_LABEL, IDS_CONVERSION_HOTKEY);
   set(IDC_HOTKEY_ENABLED_CHECK, IDS_HOTKEY_ENABLED);
   set(IDC_HOTKEY_CTRL_CHECK, IDS_HOTKEY_CTRL);
@@ -1000,13 +1027,18 @@ void InitializeComboContents() {
     AddComboString(hCandidateFontSizeCombo, text);
   }
   for (HWND combo :
-       {hHighlightColorCombo, hBackgroundColorCombo, hTextColorCombo}) {
+       {hHighlightColorCombo, hBackgroundColorCombo, hTextColorCombo,
+        hCompositionColorCombo}) {
     for (const auto& option : kColorOptions) {
       AddComboString(
           combo,
           LoadLocalizedStringW(GetModuleHandle(nullptr), option.labelId)
               .c_str());
     }
+  }
+  for (const auto id : kCompositionModeLabels) {
+    AddComboString(hCompositionDisplayCombo,
+                   LoadLocalizedStringW(GetModuleHandle(nullptr), id).c_str());
   }
   for (int key : kConversionHotkeyKeys) {
     wchar_t label[4] = {};
@@ -1069,6 +1101,13 @@ void BindControls(HWND hwnd) {
   TrackTextControl(BindControl(hwnd, IDC_TEXT_COLOR_LABEL));
   hTextColorCombo = BindControl(hwnd, IDC_TEXT_COLOR_COMBO);
   g_ComboBoxes.push_back(hTextColorCombo);
+  TrackTextControl(BindControl(hwnd, IDC_COMPOSITION_DISPLAY_LABEL));
+  hCompositionDisplayCombo =
+      BindControl(hwnd, IDC_COMPOSITION_DISPLAY_COMBO);
+  g_ComboBoxes.push_back(hCompositionDisplayCombo);
+  TrackTextControl(BindControl(hwnd, IDC_COMPOSITION_COLOR_LABEL));
+  hCompositionColorCombo = BindControl(hwnd, IDC_COMPOSITION_COLOR_COMBO);
+  g_ComboBoxes.push_back(hCompositionColorCombo);
   TrackTextControl(BindControl(hwnd, IDC_CONVERSION_HOTKEY_LABEL));
   hHotkeyEnabledCheck = BindControl(hwnd, IDC_HOTKEY_ENABLED_CHECK);
   hHotkeyCtrlCheck = BindControl(hwnd, IDC_HOTKEY_CTRL_CHECK);
@@ -1123,6 +1162,8 @@ void BindControls(HWND hwnd) {
                        hHighlightColorCombo,
                        hBackgroundColorCombo,
                        hTextColorCombo,
+                       hCompositionDisplayCombo,
+                       hCompositionColorCombo,
                        hHotkeyEnabledCheck,
                        hHotkeyCtrlCheck,
                        hHotkeyShiftCheck,
@@ -1334,6 +1375,9 @@ INT_PTR CALLBACK DlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
           SetChecked(hLowercaseRadio, true);
         } else if (IsCheckButton(clickedControl)) {
           SetChecked(clickedControl, !IsChecked(clickedControl));
+        }
+        if (clickedControl == hCompositionDisplayCombo) {
+          UpdateCompositionColorEnabled();
         }
         SaveAndNotify();
         if (IsRadioButton(clickedControl)) {
