@@ -3,7 +3,7 @@
 [繁體中文](README.md) | [English](README.en.md)
 
 ![Windows 11](https://img.shields.io/badge/Windows%2011-x64%20%2B%20x86-0078D6?logo=windows)
-![Version](https://img.shields.io/badge/version-0.9.4--beta.1-B45DB7)
+![Version](https://img.shields.io/badge/version-0.9.9.0-B45DB7)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 KeyKey 41 is a Traditional Chinese Bopomofo input method for Windows 11. It
@@ -16,6 +16,8 @@ keyboard layouts.
 > of their respective owners.
 
 ## Problem
+
+Already installed? See the [v0.9.9.0 bilingual release notes and update instructions](docs/release-0.9.9.0.md). Download and extract the update ZIP, run `Update.cmd` as administrator, and select `2` for a full update. This release provides an update package, not a first-time MSI installer. New users should install the MSI from [v0.9.8-beta.1](https://github.com/whyren0324/KeyKey41-Eten-Tribute/releases/tag/v0.9.8-beta.1) first.
 
 People who rely on Yahoo KeyKey or the Eten 41-key layout have few maintained
 options that preserve their familiar workflow on current Windows systems.
@@ -49,8 +51,8 @@ The screenshot below shows the current preferences application:
 ## Installation
 
 1. Download the latest MSI from
-   [Releases](https://github.com/whyren0324/KeyKey41-Eten-Tribute/releases/latest).
-   The current test release is `0.9.4-beta.1`.
+   [v0.9.8-beta.1](https://github.com/whyren0324/KeyKey41-Eten-Tribute/releases/tag/v0.9.8-beta.1).
+   Use this MSI for first-time installation, then apply the `0.9.9.0` update.
 2. Compare the file's SHA-256 checksum with the release notes.
 3. Run the MSI with administrator privileges.
 4. Select **KeyKey 41** from the Windows language and input-method menu.

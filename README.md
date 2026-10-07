@@ -3,7 +3,7 @@
 [繁體中文](README.md) | [English](README.en.md)
 
 ![Windows 11](https://img.shields.io/badge/Windows%2011-x64%20%2B%20x86-0078D6?logo=windows)
-![版本](https://img.shields.io/badge/版本-0.9.8--beta.1-B45DB7)
+![版本](https://img.shields.io/badge/版本-0.9.9.0-B45DB7)
 ![授權](https://img.shields.io/badge/授權-MIT-green)
 
 KeyKey 41 是一套為 Windows 11 開發的繁體中文注音輸入法。它參考 Yahoo! 奇摩
@@ -46,7 +46,10 @@ KeyKey 41 以 Windows TSF 重新建立核心體驗：
 
 ## 安裝方式
 
-1. 到 [Releases](https://github.com/whyren0324/KeyKey41-Eten-Tribute/releases/latest)
+已安裝的使用者：請參閱 [0.9.9.0 中英文更新內容與操作說明](docs/release-0.9.9.0.md)，下載更新 ZIP，解壓縮後以管理員身分執行 `Update.cmd`，選 `2` 完整更新。
+本版 Release 提供更新包而非首次安裝 MSI；首次安裝請使用下方的既有 MSI。
+
+1. 到 [v0.9.8-beta.1](https://github.com/whyren0324/KeyKey41-Eten-Tribute/releases/tag/v0.9.8-beta.1)
    下載最新版 MSI；目前測試版本為 `0.9.8-beta.1`。
 2. 對照 Release 說明所列的 SHA-256。
 3. 以系統管理員權限執行 MSI。
