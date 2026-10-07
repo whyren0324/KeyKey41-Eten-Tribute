@@ -140,6 +140,11 @@ void LogMessageImpl(bool relayToServer, const char* format, va_list args) {
 }  // namespace
 
 void EnsureServerStarted() {
+  DWORD updating = 0;
+  DWORD valueSize = sizeof(updating);
+  RegGetValueW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\KeyKey41", L"UpdateInProgress",
+               RRF_RT_REG_DWORD | RRF_SUBKEY_WOW6464KEY, nullptr, &updating, &valueSize);
+  if (updating) return;
   // A zero-timeout check avoids delaying TIP activation when the server is
   // already running. ERROR_SEM_TIMEOUT means all pipe instances are busy, but
   // the server still exists and must not be started again.
@@ -169,6 +174,30 @@ void EnsureServerStarted() {
     return;
   }
   moduleDirectory.resize(separator);
+
+  // Both TIP architectures share the active native backend selected by the
+  // updater. Older DLL directories remain available for rollback.
+  wchar_t activeServer[32768] = {};
+  DWORD activeSize = sizeof(activeServer);
+  if (RegGetValueW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\KeyKey41", L"ActiveServerPath",
+                   RRF_RT_REG_SZ | RRF_SUBKEY_WOW6464KEY, nullptr,
+                   activeServer, &activeSize) == ERROR_SUCCESS &&
+      GetFileAttributesW(activeServer) != INVALID_FILE_ATTRIBUTES) {
+    std::wstring workingDir(activeServer);
+    const auto slash = workingDir.find_last_of(L"\\/");
+    if (slash != std::wstring::npos) {
+      workingDir.resize(slash);
+      STARTUPINFOW startupInfo = {};
+      startupInfo.cb = sizeof(startupInfo);
+      PROCESS_INFORMATION processInfo = {};
+      if (CreateProcessW(activeServer, nullptr, nullptr, nullptr, FALSE, 0,
+                         nullptr, workingDir.c_str(), &startupInfo, &processInfo)) {
+        CloseHandle(processInfo.hThread);
+        CloseHandle(processInfo.hProcess);
+      }
+      return;
+    }
+  }
 
 #if defined(_WIN64)
   const wchar_t* architectureServer = L"McBopomofoServer_x64.exe";

@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 
 #include <memory>
+#include <chrono>
+#include <filesystem>
 
 #include "InputController.h"
 #include "KeyHandler.h"
@@ -104,6 +106,42 @@ TEST_F(BugReproTest, JumpToBig5State) {
 
   // Now it should be in Big5 state
   EXPECT_EQ(ui->lastState.composingBuffer, "[Big5碼] ");
+}
+
+TEST_F(BugReproTest, ExplicitLongPhraseSelectionSurvivesRestartAndNewContext) {
+  const std::string data =
+      "ㄅ 舊 -1\n"
+      "ㄅ-ㄅ-ㄅ-ㄅ 舊舊舊舊 -2\n"
+      "ㄅ-ㄅ-ㄅ-ㄅ 新新新新 -9\n";
+  lm->loadLanguageModel(std::make_unique<ParselessPhraseDB>(data.data(), data.size()));
+  auto file = std::filesystem::temp_directory_path() /
+      ("keykey-integration-" + std::to_string(
+          std::chrono::steady_clock::now().time_since_epoch().count()) + ".txt");
+  struct Cleanup { std::filesystem::path p; ~Cleanup() { std::filesystem::remove(p); } } cleanup{file};
+  ASSERT_TRUE(keyHandler->setLearningPath(file));
+  auto type = [&]() {
+    for (int i = 0; i < 4; ++i) {
+      controller->handleKey(Key::asciiKey('1', false, false));
+      controller->handleKey(Key::asciiKey(' ', false, false));
+    }
+  };
+  type();
+  EXPECT_EQ(ui->lastState.composingBuffer, "舊舊舊舊");
+  keyHandler->candidateSelected({"ㄅ-ㄅ-ㄅ-ㄅ", "新新新新", "新新新新"}, 4,
+                                [](std::unique_ptr<InputState>) {});
+  ASSERT_TRUE(std::filesystem::exists(file));
+  keyHandler = std::make_shared<KeyHandler>(lm, nullptr,
+      std::make_shared<DummyUserPhraseAdder>(), std::make_unique<DummyLocalizedStrings>());
+  ASSERT_TRUE(keyHandler->setLearningPath(file));
+  controller = std::make_unique<InputController>(keyHandler, ui.get(),
+      std::make_unique<DummyInputControllerLocalizedStrings>());
+  type();
+  EXPECT_EQ(ui->lastState.composingBuffer, "新新新新");
+  // A fifth syllable changes segmentation/context. The stored reading preference
+  // must still find the four-syllable candidate at the new cursor.
+  controller->handleKey(Key::asciiKey('1', false, false));
+  controller->handleKey(Key::asciiKey(' ', false, false));
+  EXPECT_NE(ui->lastState.composingBuffer.find("新新新新"), std::string::npos);
 }
 
 TEST_F(BugReproTest, JumpToIcuTransformInputState) {

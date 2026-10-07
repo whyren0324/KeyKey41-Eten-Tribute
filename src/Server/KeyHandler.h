@@ -249,6 +249,11 @@ class KeyHandler {
   std::unique_ptr<LocalizedStrings> localizedStrings_;
 
   UserOverrideModel userOverrideModel_;
+  std::filesystem::path learningPath_;
+  void saveLearning();
+ public:
+  bool setLearningPath(const std::filesystem::path& path);
+ private:
   Formosa::Mandarin::BopomofoReadingBuffer reading_;
   Formosa::Gramambular2::ReadingGrid::WalkResult latestWalk_;
   DictionaryServices dictionaryServices_;

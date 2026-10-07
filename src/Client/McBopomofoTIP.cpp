@@ -290,15 +290,15 @@ bool IsConversionToggleHotkey(WPARAM wParam,
                                               ctrl, shift, alt);
 }
 
-bool IsLeftShiftKeyEvent(WPARAM wParam, LPARAM lParam) {
-  if (wParam == VK_LSHIFT) {
+bool IsShiftToggleKeyEvent(WPARAM wParam, LPARAM lParam) {
+  if (wParam == VK_LSHIFT || wParam == VK_RSHIFT) {
     return true;
   }
   if (wParam != VK_SHIFT) {
     return false;
   }
   const UINT scanCode = static_cast<UINT>((lParam >> 16) & 0xff);
-  return scanCode == 0x2a;
+  return scanCode == 0x2a || scanCode == 0x36;
 }
 
 bool IsAltPressed(const BYTE keyboardState[256]) {
@@ -824,12 +824,12 @@ STDAPI McBopomofoTIP::OnTestKeyDown(ITfContext* pic, WPARAM wParam,
   BYTE keyboardState[256];
   GetKeyboardState(keyboardState);
 
-  if (IsLeftShiftKeyEvent(wParam, lParam)) {
+  if (IsShiftToggleKeyEvent(wParam, lParam)) {
     *pfEaten = TRUE;
     return S_OK;
   }
 
-  // Any key pressed while Left Shift is held makes it a normal chord rather
+  // Any key pressed while either Shift is held makes it a normal chord rather
   // than a standalone mode toggle.
   if (shiftToggleKeyPending_) {
     shiftToggleKeyPending_ = false;
@@ -1026,7 +1026,7 @@ STDAPI McBopomofoTIP::OnTestKeyUp(ITfContext* pic, WPARAM wParam, LPARAM lParam,
     return E_INVALIDARG;
   }
   *pfEaten =
-      IsLeftShiftKeyEvent(wParam, lParam) && shiftToggleKeyPending_ ? TRUE
+      IsShiftToggleKeyEvent(wParam, lParam) && shiftToggleKeyPending_ ? TRUE
                                                                    : FALSE;
   return S_OK;
 }
@@ -1310,7 +1310,7 @@ bool McBopomofoTIP::shouldToggleOpenCloseWithShift_() const {
 
 bool McBopomofoTIP::handleStandaloneShiftKeyDown_(
     WPARAM wParam, LPARAM lParam, const BYTE keyboardState[256]) {
-  if (IsLeftShiftKeyEvent(wParam, lParam) &&
+  if (IsShiftToggleKeyEvent(wParam, lParam) &&
       IsOnlyShiftKeyEvent(wParam, keyboardState)) {
     shiftToggleKeyPending_ = true;
     return true;
@@ -1323,7 +1323,7 @@ bool McBopomofoTIP::handleStandaloneShiftKeyDown_(
 bool McBopomofoTIP::handleStandaloneShiftKeyUp_(WPARAM wParam,
                                                 LPARAM lParam,
                                                 const BYTE keyboardState[256]) {
-  const bool shouldToggle = IsLeftShiftKeyEvent(wParam, lParam) &&
+  const bool shouldToggle = IsShiftToggleKeyEvent(wParam, lParam) &&
                             IsOnlyShiftKeyEvent(wParam, keyboardState) &&
                             shiftToggleKeyPending_ &&
                             shouldToggleOpenCloseWithShift_();

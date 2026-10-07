@@ -83,7 +83,7 @@ up new settings, select **Reload** or switch away from and back to KeyKey 41.
 
 | Action | Default shortcut |
 |---|---|
-| Toggle Chinese/English | Left Shift |
+| Toggle Chinese/English | Press Left or Right Shift alone |
 | Toggle Traditional/Simplified Chinese | Ctrl + F3 |
 | Toggle full-width/half-width | Shift + Space |
 | Full-width comma `，` | Right Shift + `,` |

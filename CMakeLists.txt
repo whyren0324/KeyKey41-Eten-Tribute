@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(WinMcBopomofo VERSION 0.9.8 LANGUAGES CXX C)
+project(WinMcBopomofo VERSION 0.9.9 LANGUAGES CXX C)
 
 set(WINMCBOPOMOFO_GENERATED_DIR "${CMAKE_BINARY_DIR}/generated")
 set(WINMCBOPOMOFO_VERSION_RC "${WINMCBOPOMOFO_GENERATED_DIR}/WinMcBopomofoVersion.rcinc")
@@ -77,6 +77,11 @@ target_link_libraries(BugReproTest PRIVATE
     icuin
 )
 add_test(NAME BugReproTest COMMAND BugReproTest)
+
+add_executable(SelectionLearningTest tests/SelectionLearningTest.cpp
+    src/Server/Engine/UserOverrideModelTest.cpp)
+target_link_libraries(SelectionLearningTest PRIVATE McBopomofoEngine gtest_main)
+add_test(NAME SelectionLearningTest COMMAND SelectionLearningTest)
 
 add_executable(IpcTest tests/IpcTest.cpp)
 target_include_directories(IpcTest PRIVATE ${CMAKE_SOURCE_DIR}/src/Common ${CMAKE_SOURCE_DIR}/third_party/OpenCC/deps/googletest-1.15.0/googletest/include)

@@ -41,6 +41,7 @@
 #include "CandidateWindow.h"
 #include "CandidateWindowColors.h"
 #include "InputController.h"
+#include "WinMcBopomofoVersion.rcinc"
 #include "InputMacro.h"
 #include "KeyHandler.h"
 #include "LanguageModelLoader.h"
@@ -846,6 +847,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
   std::mutex reloadMutex;
 
   std::string userDir = fcitx5_compat::userDirectory();
+  if (!keyHandler->setLearningPath(std::filesystem::u8path(userDir) / "selection-learning-v1.txt")) {
+    FCITX_MCBOPOMOFO_WARN() << "Unable to load selection learning data; original file preserved";
+  }
   std::filesystem::path disabledAppsPath = DisabledAppsPath(userDir);
   EnsureDisabledAppsFile(disabledAppsPath);
   HWND hwndTray = nullptr;
@@ -974,6 +978,12 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
       IPC::ClientSettingsPayload payload;
       payload.shiftToggleOpenClose = settings.shiftToggleOpenClose();
       return IPC::SerializeClientSettings(payload);
+    }
+
+    if (req == "8\n") {
+      // Updater protocol version, actual responding process, file version.
+      return std::string("1\n") + std::to_string(GetCurrentProcessId()) + "\n" +
+             WINMCBOPOMOFO_VERSION_STR + "\n";
     }
 
     IPC::ProcessDisabledQueryPayload processDisabledQuery;

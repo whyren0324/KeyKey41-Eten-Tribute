@@ -24,6 +24,7 @@
 // clang-format off
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <shellapi.h>
 #include <commctrl.h>
 #include <dwmapi.h>
 #include <uxtheme.h>
@@ -32,6 +33,7 @@
 #include <algorithm>
 #include <array>
 #include <string>
+#include <sstream>
 #include <utility>
 #include <vector>
 
@@ -41,6 +43,7 @@
 #include "NamedPipe.h"
 #include "Settings.h"
 #include "resource.h"
+#include "WinMcBopomofoVersion.rcinc"
 
 #pragma comment(lib, "comctl32.lib")
 #pragma comment(lib, "shell32.lib")
@@ -58,6 +61,51 @@ constexpr const wchar_t* kSingleInstanceMutexName =
     L"Local\\WinMcBopomofoConfigSingleInstance";
 constexpr int kReloadCommand = IDC_RELOAD_BUTTON;
 constexpr int kAboutCommand = IDC_ABOUT_BUTTON;
+constexpr int kVersionHistoryCommand = 5001;
+
+std::wstring BinaryVersion(const std::wstring& path) {
+  DWORD ignored = 0;
+  DWORD size = GetFileVersionInfoSizeW(path.c_str(), &ignored);
+  if (!size) return L"?";
+  std::vector<BYTE> data(size);
+  if (!GetFileVersionInfoW(path.c_str(), 0, size, data.data())) return L"?";
+  VS_FIXEDFILEINFO* info = nullptr;
+  UINT length = 0;
+  if (!VerQueryValueW(data.data(), L"\\", reinterpret_cast<void**>(&info), &length) ||
+      length < sizeof(VS_FIXEDFILEINFO) || info->dwSignature != 0xfeef04bd) return L"?";
+  return std::to_wstring(HIWORD(info->dwFileVersionMS)) + L"." +
+         std::to_wstring(LOWORD(info->dwFileVersionMS)) + L"." +
+         std::to_wstring(HIWORD(info->dwFileVersionLS)) + L"." +
+         std::to_wstring(LOWORD(info->dwFileVersionLS));
+}
+
+std::wstring InstalledTipVersion(bool x64) {
+  wchar_t path[32768] = {};
+  DWORD size = sizeof(path);
+  const DWORD view = x64 ? RRF_SUBKEY_WOW6464KEY : RRF_SUBKEY_WOW6432KEY;
+  if (RegGetValueW(HKEY_LOCAL_MACHINE,
+      L"SOFTWARE\\Classes\\CLSID\\{8C9D652A-9B99-4B77-BA9A-3B0F76923B7B}\\InProcServer32",
+      nullptr, RRF_RT_REG_SZ | view, nullptr, path, &size) != ERROR_SUCCESS) return L"?";
+  return BinaryVersion(path);
+}
+
+std::wstring VersionSummary() {
+  const bool chinese = PRIMARYLANGID(GetUserDefaultUILanguage()) == LANG_CHINESE;
+  std::wstring backend = chinese ? L"未取得" : L"unavailable";
+  IPC::NamedPipeClient pipe(IPC::PIPE_NAME);
+  std::string response;
+  if (pipe.Call("8\n", response)) {
+    std::istringstream input(response);
+    std::string protocol, pid, version;
+    if (std::getline(input, protocol) && protocol == "1" &&
+        std::getline(input, pid) && std::getline(input, version)) backend = Utf8ToUtf16(version);
+  }
+  return (chinese ? L"設定程式版本：" : L"Settings version: ") +
+      Utf8ToUtf16(WINMCBOPOMOFO_VERSION_STR) + L"\n" +
+      (chinese ? L"執行中的後端：" : L"Running backend: ") + backend + L"\n" +
+      (chinese ? L"已註冊前端（x64 / x86）：" : L"Registered frontend (x64 / x86): ") +
+      InstalledTipVersion(true) + L" / " + InstalledTipVersion(false) + L"\n\n";
+}
 constexpr int kScrollLineHeight = 20;  // pixels per scroll line
 
 // Light Mode Colors
@@ -994,7 +1042,9 @@ void LocalizeControls(HWND hwnd) {
   set(IDC_ERROR_BEEP_LABEL, IDS_ERROR_BEEP);
   set(IDC_ERROR_BEEP_CHECK, IDS_ERROR_BEEP);
   set(IDC_ABOUT_BUTTON, IDS_ABOUT_TITLE);
-  SetWindowTextW(hwnd, LoadLocalizedStringW(hInst, IDS_CONFIG_TITLE).c_str());
+  std::wstring versionedTitle = LoadLocalizedStringW(hInst, IDS_CONFIG_TITLE) +
+      L" — v" + Utf8ToUtf16(WINMCBOPOMOFO_VERSION_STR);
+  SetWindowTextW(hwnd, versionedTitle.c_str());
 }
 
 void InitializeComboContents() {
@@ -1202,12 +1252,22 @@ INT_PTR CALLBACK AboutDlgProc(HWND hwnd, UINT msg, WPARAM wParam,
       ApplyThemeToWindow(hwnd);
       HINSTANCE hInst = GetModuleHandle(nullptr);
       SetWindowTextW(hwnd, LoadLocalizedStringW(hInst, IDS_ABOUT_TITLE).c_str());
-      SetDlgItemTextW(hwnd, IDC_ABOUT_TEXT,
-                      LoadLocalizedStringW(hInst, IDS_ABOUT_BODY).c_str());
+      std::wstring about = VersionSummary() + LoadLocalizedStringW(hInst, IDS_ABOUT_BODY);
+      SetDlgItemTextW(hwnd, IDC_ABOUT_TEXT, about.c_str());
+      SetDlgItemTextW(hwnd, kVersionHistoryCommand,
+          PRIMARYLANGID(GetUserDefaultUILanguage()) == LANG_CHINESE ? L"版本紀錄" : L"Version history");
       CenterWindow(hwnd);
       return TRUE;
     }
     case WM_COMMAND:
+      if (LOWORD(wParam) == kVersionHistoryCommand) {
+        wchar_t modulePath[32768] = {};
+        GetModuleFileNameW(nullptr, modulePath, static_cast<DWORD>(std::size(modulePath)));
+        auto historyPath = std::filesystem::path(modulePath).parent_path() / L"VERSION_HISTORY.md";
+        auto result = reinterpret_cast<INT_PTR>(ShellExecuteW(hwnd, L"open", historyPath.c_str(), nullptr, nullptr, SW_SHOWNORMAL));
+        if (result <= 32) MessageBoxW(hwnd, historyPath.c_str(), L"Version history", MB_OK | MB_ICONINFORMATION);
+        return TRUE;
+      }
       if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL) {
         EndDialog(hwnd, LOWORD(wParam));
         return TRUE;
@@ -1411,7 +1471,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
       CreateMutexW(nullptr, TRUE, kSingleInstanceMutexName);
   if (hSingleInstanceMutex && GetLastError() == ERROR_ALREADY_EXISTS) {
     std::wstring windowTitle =
-        LoadLocalizedStringW(hInstance, IDS_CONFIG_TITLE);
+        LoadLocalizedStringW(hInstance, IDS_CONFIG_TITLE) + L" — v" + Utf8ToUtf16(WINMCBOPOMOFO_VERSION_STR);
     HWND existingWindow = FindWindowW(L"#32770", windowTitle.c_str());
     if (existingWindow) {
       ShowWindow(existingWindow, SW_RESTORE);
@@ -1432,7 +1492,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
   hUiFont = CreateUIFont(11, FW_NORMAL);
   hTitleFont = CreateUIFont(11, FW_BOLD);
   hLinkFont = CreateUIFont(11, FW_NORMAL, true);
-  std::wstring windowTitle = LoadLocalizedStringW(hInstance, IDS_CONFIG_TITLE);
+  std::wstring windowTitle = LoadLocalizedStringW(hInstance, IDS_CONFIG_TITLE) + L" — v" + Utf8ToUtf16(WINMCBOPOMOFO_VERSION_STR);
   HWND hwnd = CreateDialogParamW(hInstance, MAKEINTRESOURCEW(IDD_CONFIG_DIALOG),
                                  nullptr, DlgProc, 0);
   if (hwnd == nullptr) {

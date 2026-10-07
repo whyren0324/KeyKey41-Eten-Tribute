@@ -25,6 +25,7 @@
 #define SRC_ENGINE_USEROVERRIDEMODEL_H_
 
 #include <list>
+#include <filesystem>
 #include <map>
 #include <string>
 #include <utility>
@@ -36,6 +37,8 @@ namespace McBopomofo {
 class UserOverrideModel {
  public:
   UserOverrideModel(size_t capacity, double decayConstant);
+  bool load(const std::filesystem::path& path);
+  bool save(const std::filesystem::path& path) const;
 
   struct Suggestion {
     Suggestion() = default;

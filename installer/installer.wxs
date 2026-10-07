@@ -5,7 +5,7 @@
   <!-- Use a static upgrade code to allow seamless upgrades later -->
   <Package Name="!(loc.ProductName)"
            Manufacturer="!(loc.Manufacturer)"
-           Version="0.9.8.0"
+           Version="0.9.9.0"
            UpgradeCode="4e4b52c0-cf52-47b1-9b7e-976c6dfcbb17"
            Scope="perMachine"
            InstallerVersion="200"
@@ -77,6 +77,9 @@
     </StandardDirectory>
 
     <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+      <Component Id="cmp_VersionHistory" Guid="6c2333b1-4360-4ff2-a9f9-96da7738f725">
+        <File Id="file_VersionHistory" Source="VERSION_HISTORY.md" KeyPath="yes" />
+      </Component>
       <!-- Persistence for Install Path -->
       <Component Id="cmp_SaveInstallDir" Guid="1d3c5e7f-8b2a-4a1d-8c7b-3e5f4d2c1b0a">
         <RegistryValue Root="HKLM" Key="SOFTWARE\KeyKey41" Name="InstallDir" Type="string" Value="[INSTALLFOLDER]" KeyPath="yes" />

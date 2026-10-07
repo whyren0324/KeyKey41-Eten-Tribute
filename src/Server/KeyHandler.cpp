@@ -36,6 +36,7 @@
 #include "BopomofoBraille/Converter.h"
 #include "IcuTransformInputHelper.h"
 #include "LanguageModelLoader.h"
+#include "Log.h"
 #include "McBopomofoLM.h"
 #include "NumberInputHelper.h"
 #include "UTF8Helper.h"
@@ -57,10 +58,8 @@ constexpr size_t kMaxValidMarkingReadingCount = 8;
 constexpr size_t kMaxChineseNumberConversionDigits = 20;
 constexpr size_t kMaxRomanNumberConversionDigits = 4;
 
-constexpr int kUserOverrideModelCapacity = 500;
-constexpr double kObservedOverrideHalfLife = 5400.0;  // 1.5 hr.
-// Unigram whose score is below this shouldn't be put into user override model.
-constexpr double kNoOverrideThreshold = -8.0;
+constexpr int kUserOverrideModelCapacity = 10000;
+constexpr double kObservedOverrideHalfLife = 90.0 * 24 * 3600;  // 90 days.
 
 static const char* GetKeyboardLayoutName(
     const Formosa::Mandarin::BopomofoKeyboardLayout* layout) {
@@ -185,6 +184,19 @@ bool KeyHandler::handle(Key key, McBopomofo::InputState* state,
     if (inputMode_ != McBopomofo::InputMode::PlainBopomofo) {
       UserOverrideModel::Suggestion suggestion = userOverrideModel_.suggest(
           latestWalk_, actualCandidateCursorIndex(), GetEpochNowInSeconds());
+
+      // Fall back to a reading preference when the surrounding words differ.
+      if (suggestion.empty()) {
+        size_t bestLength = 0;
+        for (const auto& candidate : grid_.candidatesAt(actualCandidateCursorIndex())) {
+          auto learned = userOverrideModel_.suggest("reading:" + candidate.reading,
+                                                    GetEpochNowInSeconds());
+          if (learned.candidate == candidate.value && candidate.reading.size() > bestLength) {
+            suggestion = learned;
+            bestLength = candidate.reading.size();
+          }
+        }
+      }
 
       if (!suggestion.empty()) {
         Formosa::Gramambular2::ReadingGrid::Node::OverrideType t =
@@ -575,6 +587,11 @@ void KeyHandler::candidateSelected(
     const InputStates::ChoosingCandidate::Candidate& candidate,
     size_t originalCursor, StateCallback stateCallback) {
   if (inputMode_ == InputMode::PlainBopomofo) {
+    if (!candidate.reading.empty() && candidate.reading[0] != '_') {
+      userOverrideModel_.observe("reading:" + candidate.reading, candidate.value,
+                                 GetEpochNowInSeconds(), true);
+      saveLearning();
+    }
     reset();
     std::string reading = candidate.reading;
     std::string value = candidate.value;
@@ -1841,10 +1858,12 @@ void KeyHandler::pinNode(
   }
   const Formosa::Gramambular2::ReadingGrid::NodePtr& currentNode = *nodeIter;
 
-  if (currentNode != nullptr &&
-      currentNode->currentUnigram().score() > kNoOverrideThreshold) {
+  if (currentNode != nullptr && !candidate.reading.empty() && candidate.reading[0] != '_') {
     userOverrideModel_.observe(prevWalk, latestWalk_, actualCursor,
                                GetEpochNowInSeconds());
+    userOverrideModel_.observe("reading:" + candidate.reading, candidate.value,
+                               GetEpochNowInSeconds(), true);
+    saveLearning();
   }
 
   if (currentNode != nullptr && useMoveCursorAfterSelectionSetting &&
@@ -1947,7 +1966,30 @@ void KeyHandler::pinNodeWithAssociatedPhrase(
   }
 
   walk();
+  if (!associatedPhraseReading.empty() && associatedPhraseReading[0] != '_') {
+    userOverrideModel_.observe("reading:" + associatedPhraseReading,
+                               associatedPhraseValue, GetEpochNowInSeconds(), true);
+    saveLearning();
+  }
   // Cursor is already at accumulatedCursor, so no more work here.
+}
+
+bool KeyHandler::setLearningPath(const std::filesystem::path& path) {
+  learningPath_ = path;
+  std::error_code error;
+  const bool exists = std::filesystem::exists(path, error);
+  if (error) { learningPath_.clear(); return false; }
+  if (!exists) return true;
+  if (userOverrideModel_.load(path)) return true;
+  // Preserve an unreadable file for recovery rather than overwriting it.
+  learningPath_.clear();
+  return false;
+}
+
+void KeyHandler::saveLearning() {
+  if (!learningPath_.empty() && !userOverrideModel_.save(learningPath_)) {
+    FCITX_MCBOPOMOFO_WARN() << "Unable to save selection learning data";
+  }
 }
 
 std::unique_ptr<InputStates::SelectingDictionary>

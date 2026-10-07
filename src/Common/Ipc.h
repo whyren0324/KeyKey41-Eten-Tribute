@@ -41,6 +41,7 @@ enum class Command : int {
   CMD_GET_SETTINGS = 5,
   CMD_CLIENT_LOG = 6,
   CMD_IS_PROCESS_DISABLED = 7,
+  CMD_GET_RUNTIME_INFO = 8,
 };
 
 enum class CandidateSelectionStyle : int {

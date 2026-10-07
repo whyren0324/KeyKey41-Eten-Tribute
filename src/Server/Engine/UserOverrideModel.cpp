@@ -25,6 +25,12 @@
 #include "UserOverrideModel.h"
 
 #include <cassert>
+#include <fstream>
+#include <iomanip>
+#include <sstream>
+#ifdef _WIN32
+#include <windows.h>
+#endif
 #include <cmath>
 #include <list>
 #include <string>
@@ -84,9 +90,8 @@ void UserOverrideModel::observe(
     return;
   }
 
-  // Based on previous analysis, we found it meaningless to handle phrases
-  // over 3 characters.
-  if ((*currentNodeIt)->spanningLength() > 3) {
+  // Learn long phrases too, but exclude synthetic punctuation/macro keys.
+  if ((*currentNodeIt)->reading().empty() || (*currentNodeIt)->reading()[0] == '_') {
     return;
   }
 
@@ -151,6 +156,7 @@ UserOverrideModel::Suggestion UserOverrideModel::suggest(
     const Formosa::Gramambular2::ReadingGrid::WalkResult& currentWalk,
     size_t cursor, double timestamp) {
   auto nodeIter = currentWalk.findNodeAt(cursor);
+  if (nodeIter == currentWalk.nodes.end()) return {};
   std::string key = FormObservationKey(nodeIter, currentWalk.nodes.begin());
   return suggest(key, timestamp);
 }
@@ -239,6 +245,64 @@ static double Score(size_t eventCount, size_t totalCount, double eventTimestamp,
   double prob =
       static_cast<double>(eventCount) / static_cast<double>(totalCount);
   return prob * decay;
+}
+
+bool UserOverrideModel::save(const std::filesystem::path& path) const {
+  auto temp = path;
+  temp += ".tmp";
+  std::ofstream out(temp, std::ios::binary | std::ios::trunc);
+  if (!out) return false;
+  out << "KEYKEY_LEARNING_V1\n" << std::setprecision(17);
+  // Oldest first so loading restores the LRU order.
+  for (auto it = lruList_.rbegin(); it != lruList_.rend(); ++it) {
+    for (const auto& entry : it->second.overrides) {
+      out << std::quoted(it->first) << ' ' << std::quoted(entry.first)
+          << ' ' << entry.second.count << ' ' << entry.second.timestamp
+          << ' ' << entry.second.forceHighScoreOverride << '\n';
+    }
+  }
+  out.flush();
+  if (!out) return false;
+  out.close();
+  if (!out) return false;
+#ifdef _WIN32
+  return MoveFileExW(temp.c_str(), path.c_str(),
+                     MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0;
+#else
+  std::error_code error;
+  std::filesystem::rename(temp, path, error);
+  return !error;
+#endif
+}
+
+bool UserOverrideModel::load(const std::filesystem::path& path) {
+  std::ifstream in(path, std::ios::binary);
+  std::string line;
+  if (!std::getline(in, line) || line != "KEYKEY_LEARNING_V1") return false;
+  UserOverrideModel loaded(capacity_, 1);
+  size_t rows = 0;
+  while (std::getline(in, line)) {
+    if (++rows > 100000 || line.size() > 16384) return false;
+    std::istringstream row(line);
+    std::string key, candidate;
+    long long count;
+    double timestamp;
+    int force;
+    if (!(row >> std::quoted(key) >> std::quoted(candidate) >> count >> timestamp >> force)
+        || key.empty() || candidate.empty() || count <= 0 || count > 1000000000
+        || !std::isfinite(timestamp) || timestamp < 0 || (force != 0 && force != 1)) return false;
+    row >> std::ws;
+    if (!row.eof()) return false;
+    loaded.observe(key, candidate, timestamp, force != 0);
+    auto& observation = loaded.lruMap_.at(key)->second;
+    if (observation.overrides.at(candidate).count != 1) return false;
+    observation.overrides.at(candidate).count = static_cast<size_t>(count);
+    observation.count += static_cast<size_t>(count) - 1;
+  }
+  if (!in.eof()) return false;
+  lruList_.swap(loaded.lruList_);
+  lruMap_.swap(loaded.lruMap_);
+  return true;
 }
 
 static std::string CombineReadingValue(const std::string& reading,
