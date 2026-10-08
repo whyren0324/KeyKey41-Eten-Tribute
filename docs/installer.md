@@ -112,4 +112,4 @@ The script supports several flags:
 
 Once complete, the final installer is placed in the `dist\` directory:
 
-- `dist\Win-McBopomofo-Installer.msi`
+- `dist\KeyKey41-Eten-Tribute-x64-0.9.9.msi`

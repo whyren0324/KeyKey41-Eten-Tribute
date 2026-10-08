@@ -17,7 +17,7 @@ keyboard layouts.
 
 ## Problem
 
-Already installed? See the [v0.9.9.0 bilingual release notes and update instructions](docs/release-0.9.9.0.md). Download and extract the update ZIP, run `Update.cmd` as administrator, and select `2` for a full update. This release provides an update package, not a first-time MSI installer. New users should install the MSI from [v0.9.8-beta.1](https://github.com/whyren0324/KeyKey41-Eten-Tribute/releases/tag/v0.9.8-beta.1) first.
+Already installed? See the [v0.9.9.0 bilingual release notes and update instructions](docs/release-0.9.9.0.md). Download and extract the update ZIP, run `Update.cmd` as administrator, and select `2` for a full update. New users can install the full 0.9.9.0 MSI directly; no update ZIP is needed afterward.
 
 People who rely on Yahoo KeyKey or the Eten 41-key layout have few maintained
 options that preserve their familiar workflow on current Windows systems.
@@ -51,8 +51,8 @@ The screenshot below shows the current preferences application:
 ## Installation
 
 1. Download the latest MSI from
-   [v0.9.8-beta.1](https://github.com/whyren0324/KeyKey41-Eten-Tribute/releases/tag/v0.9.8-beta.1).
-   Use this MSI for first-time installation, then apply the `0.9.9.0` update.
+   [v0.9.9.0](https://github.com/whyren0324/KeyKey41-Eten-Tribute/releases/tag/v0.9.9.0).
+   Use `KeyKey41-Eten-Tribute-x64-0.9.9.msi` for first-time installation on Windows x64, including support for x86 applications.
 2. Compare the file's SHA-256 checksum with the release notes.
 3. Run the MSI with administrator privileges.
 4. Select **KeyKey 41** from the Windows language and input-method menu.

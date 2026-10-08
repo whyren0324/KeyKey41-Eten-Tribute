@@ -24,7 +24,7 @@
 
 更新失敗會嘗試自動回復原登錄與後端。工具選單 `3` 可查看狀態、`4` 可回復上一版、`6` 可回復原 MSI 基線；進行 MSI 維護前請先回復基線。舊版本檔案會保留，更新工具不會刪除個人詞彙或學習資料。
 
-尚未安裝輸入法的電腦：本附件不是首次安裝程式。請先從 [v0.9.8-beta.1](https://github.com/whyren0324/KeyKey41-Eten-Tribute/releases/tag/v0.9.8-beta.1) 安裝 MSI，再套用本更新包。
+尚未安裝輸入法的電腦：下載本 Release 的 `KeyKey41-Eten-Tribute-x64-0.9.9.msi`，對照 `.msi.sha256` 校驗檔後，以管理員權限安裝。此為 0.9.9.0 完整安裝程式，包含 x64 與 x86 元件；安裝後不需再套用更新 ZIP。適用 Windows x64，不適用 ARM64。
 
 驗證：9 組 CTest 功能測試及 7 項更新工具測試通過；已在現有安裝上驗證完整更新與新版 IPC 回應。
 
@@ -52,6 +52,6 @@ A reboot is usually unnecessary. Existing applications may retain the old DLL; i
 
 On failure, the updater attempts to restore the previous registration and backend. Menu option `3` inspects status, `4` rolls back one update, and `6` restores the original MSI baseline. Restore the baseline before MSI maintenance. Previous binaries are retained, and the updater does not delete personal phrases or learning data.
 
-For a computer without KeyKey 41: this attachment is not a first-time installer. Install the MSI from [v0.9.8-beta.1](https://github.com/whyren0324/KeyKey41-Eten-Tribute/releases/tag/v0.9.8-beta.1), then apply this update package.
+For a computer without KeyKey 41: download the attached `KeyKey41-Eten-Tribute-x64-0.9.9.msi`, verify its `.msi.sha256` checksum, and install as administrator. This full 0.9.9.0 installer includes x64 and x86 components; no update ZIP is needed afterward. Windows x64 is supported; ARM64 is not.
 
 Verification: all 9 CTest suites and 7 updater tests passed. Full updating and the new IPC response were also verified on an existing installation.

@@ -47,10 +47,10 @@ KeyKey 41 以 Windows TSF 重新建立核心體驗：
 ## 安裝方式
 
 已安裝的使用者：請參閱 [0.9.9.0 中英文更新內容與操作說明](docs/release-0.9.9.0.md)，下載更新 ZIP，解壓縮後以管理員身分執行 `Update.cmd`，選 `2` 完整更新。
-本版 Release 提供更新包而非首次安裝 MSI；首次安裝請使用下方的既有 MSI。
+首次安裝的使用者：直接使用下方的 0.9.9.0 完整 MSI，安裝後不需再套用更新 ZIP。
 
-1. 到 [v0.9.8-beta.1](https://github.com/whyren0324/KeyKey41-Eten-Tribute/releases/tag/v0.9.8-beta.1)
-   下載最新版 MSI；目前測試版本為 `0.9.8-beta.1`。
+1. 到 [v0.9.9.0](https://github.com/whyren0324/KeyKey41-Eten-Tribute/releases/tag/v0.9.9.0)
+   下載 `KeyKey41-Eten-Tribute-x64-0.9.9.msi`（Windows x64，包含 x86 應用程式支援）。
 2. 對照 Release 說明所列的 SHA-256。
 3. 以系統管理員權限執行 MSI。
 4. 安裝完成後，從 Windows 語言及輸入法選單選擇 **KeyKey 41**。
